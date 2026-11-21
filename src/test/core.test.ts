@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildExport, parseImport } from "../core/config";
 import {
   listRunsUrl,
   normaliseBaseUrl,
-  parseActionsUrl,
   parseJobs,
   parseRuns,
   parseWorkflows,
@@ -107,17 +105,6 @@ test("urls: base normalisation and web base", () => {
   assert.equal(webBaseFromApi("https://api.github.com"), "https://github.com");
   assert.equal(webBaseFromApi("https://ghes.example.com/api/v3"), "https://ghes.example.com");
   assert.ok(listRunsUrl("https://api.github.com", "o", "r", "ci.yml").includes("/repos/o/r/actions/workflows/ci.yml/runs"));
-});
-
-test("parseActionsUrl variants", () => {
-  assert.deepEqual(parseActionsUrl("https://github.com/o/r"), { owner: "o", repo: "r", workflow: undefined });
-  assert.deepEqual(parseActionsUrl("https://github.com/o/r/actions/workflows/ci.yml"), {
-    owner: "o",
-    repo: "r",
-    workflow: "ci.yml",
-  });
-  assert.equal(parseActionsUrl("not a url"), null);
-  assert.equal(parseActionsUrl("https://github.com/onlyowner"), null);
 });
 
 // ---------- branch-run selection ----------
@@ -253,27 +240,6 @@ test("isFreshFailure fires once per failing run", () => {
   assert.equal(isFreshFailure(okBefore, failing), true);
   assert.equal(isFreshFailure(failing, failing), false);
   assert.equal(isFreshFailure(undefined, failing), false);
-});
-
-// ---------- export / import ----------
-
-test("export never carries a token field; import round-trips", () => {
-  const config = {
-    accounts: [{ id: "a1", name: "Main", baseUrl: "https://api.github.com" }],
-    groups: [{ id: "g1", name: "G", accountId: "a1", workflows: [{ owner: "o", repo: "r", workflow: "ci.yml", starred: true }] }],
-  };
-  const exported = buildExport(config);
-  const text = JSON.stringify(exported);
-  assert.ok(!text.includes("token"), "export must not contain any token field");
-  assert.deepEqual(parseImport(text), config);
-});
-
-test("parseImport rejects junk", () => {
-  assert.throws(() => parseImport("not json"));
-  assert.throws(() => parseImport("{}"));
-  assert.throws(() =>
-    parseImport(JSON.stringify({ accounts: [], groups: [{ id: "g", name: "G", accountId: "missing", workflows: [] }] })),
-  );
 });
 
 // ---------- group display name ----------

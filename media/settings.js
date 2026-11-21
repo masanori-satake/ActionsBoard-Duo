@@ -43,7 +43,16 @@
 
   // ---------- Accounts ----------
 
+  function accountDisplayName(account) {
+    return account.name && account.name.trim() !== "" ? account.name : S.unnamedAccount;
+  }
+
   function accountCard(account) {
+    const heading = h("h3", { class: "card-title" }, accountDisplayName(account));
+    const nameInput = textInput(account.name, (v) => {
+      account.name = v;
+      heading.textContent = accountDisplayName(account);
+    });
     const resultSpan = h("span", { id: `test-result-${account.id}` });
     const tokenInput = h("input", {
       type: "password",
@@ -91,10 +100,11 @@
     return h(
       "div",
       { class: "card" },
+      heading,
       h(
         "div",
         { class: "row" },
-        labeled(S.accountName, textInput(account.name, (v) => (account.name = v))),
+        labeled(S.accountName, nameInput),
         labeled(S.baseUrl, textInput(account.baseUrl, (v) => (account.baseUrl = v))),
         removeBtn,
       ),
@@ -132,22 +142,6 @@
         ),
       ),
     );
-  }
-
-  function parseActionsUrl(input) {
-    let url;
-    try {
-      url = new URL(String(input || "").trim());
-    } catch {
-      return null;
-    }
-    const parts = url.pathname.split("/").filter((p) => p !== "");
-    if (parts.length < 2) return null;
-    const out = { owner: parts[0], repo: parts[1] };
-    if (parts[2] === "actions" && parts[3] === "workflows" && parts[4]) {
-      out.workflow = decodeURIComponent(parts[4]);
-    }
-    return out;
   }
 
   function addBox(group) {
@@ -189,59 +183,12 @@
       },
       S.listWorkflows,
     );
-    // URL paste
-    const urlInput = h("input", { type: "text", placeholder: S.urlPlaceholder });
-    const urlError = h("span", { class: "result-ng" });
-    const urlBtn = h(
-      "button",
-      {
-        onclick: () => {
-          const parsed = parseActionsUrl(urlInput.value);
-          if (!parsed) {
-            urlError.textContent = S.urlInvalid;
-            return;
-          }
-          urlError.textContent = "";
-          if (parsed.workflow) {
-            group.workflows.push({ owner: parsed.owner, repo: parsed.repo, workflow: parsed.workflow });
-            render();
-          } else {
-            dOwner.value = parsed.owner;
-            dRepo.value = parsed.repo;
-            listBtn.click();
-          }
-        },
-      },
-      S.add,
-    );
-    // Manual
-    const mOwner = h("input", { type: "text", placeholder: S.owner });
-    const mRepo = h("input", { type: "text", placeholder: S.repo });
-    const mFile = h("input", { type: "text", placeholder: "ci.yml" });
-    const mBtn = h(
-      "button",
-      {
-        onclick: () => {
-          const owner = mOwner.value.trim();
-          const repo = mRepo.value.trim();
-          const file = mFile.value.trim();
-          if (!owner || !repo || !file) return;
-          group.workflows.push({ owner, repo, workflow: file });
-          render();
-        },
-      },
-      S.add,
-    );
     return h(
       "div",
       { class: "addbox" },
-      h("h3", null, S.addByDiscovery),
+      h("h3", { class: "addbox-title" }, S.addByDiscovery),
       h("div", { class: "row" }, dOwner, dRepo, listBtn),
       dList,
-      h("h3", null, S.addByUrl),
-      h("div", { class: "row" }, urlInput, urlBtn, urlError),
-      h("h3", null, S.addManual),
-      h("div", { class: "row" }, mOwner, mRepo, mFile, mBtn),
     );
   }
 
@@ -398,14 +345,6 @@
       h("div", { class: "row" }, labeled(S.notifyScope, scopeSelect)),
       h("h2", null, S.legend),
       h("ul", { class: "legend" }, h("li", null, S.legendStar), h("li", null, S.legendMine), h("li", null, S.legendStatus)),
-      h("h2", null, S.data),
-      h(
-        "div",
-        { class: "row" },
-        h("button", { onclick: () => vscode.postMessage({ type: "export" }) }, S.exportBtn),
-        h("button", { onclick: () => vscode.postMessage({ type: "import" }) }, S.importBtn),
-        h("button", { class: "danger", onclick: () => vscode.postMessage({ type: "reset" }) }, S.resetBtn),
-      ),
     );
   }
 

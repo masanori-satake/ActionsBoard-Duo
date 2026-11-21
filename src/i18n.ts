@@ -40,11 +40,6 @@ const en = {
   "msg.saved": "ActionsBoard-Duo settings saved.",
   "msg.testOk": "Connection OK — signed in as {0}.",
   "msg.testFailed": "Connection failed: {0}",
-  "msg.imported": "Settings imported. Enter tokens for the accounts in the form.",
-  "msg.resetDone": "All ActionsBoard-Duo settings and tokens were reset.",
-  "msg.resetConfirm": "Reset all accounts, groups, watched workflows and stored tokens?",
-  "msg.resetButton": "Reset",
-  "msg.exported": "Settings exported (tokens are never included).",
 };
 
 const ja: typeof en = {
@@ -84,11 +79,6 @@ const ja: typeof en = {
   "msg.saved": "ActionsBoard-Duo の設定を保存しました。",
   "msg.testOk": "接続できました — {0} としてログインしています。",
   "msg.testFailed": "接続に失敗しました: {0}",
-  "msg.imported": "設定をインポートしました。フォームで各アカウントのトークンを入力してください。",
-  "msg.resetDone": "ActionsBoard-Duo の設定とトークンをすべてリセットしました。",
-  "msg.resetConfirm": "アカウント、グループ、監視ワークフロー、保存済みトークンをすべてリセットしますか？",
-  "msg.resetButton": "リセット",
-  "msg.exported": "設定をエクスポートしました（トークンは含まれません）。",
 };
 
 export type MsgKey = keyof typeof en;

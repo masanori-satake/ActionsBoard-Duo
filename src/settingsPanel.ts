@@ -6,16 +6,11 @@ import { isJa, t } from "./i18n";
 import { readConfig, readSettings, writeConfig, writeSettings, type BoardSettings } from "./store";
 import type { Board } from "./board";
 
-export interface SettingsActions {
-  exportSettings: () => Promise<void>;
-  importSettings: () => Promise<boolean>;
-  resetAll: () => Promise<void>;
-}
-
 const STRINGS = isJa()
   ? {
       accounts: "アカウント（サーバ）",
       accountName: "名前",
+      unnamedAccount: "（名前なしアカウント）",
       baseUrl: "API ベースURL",
       baseUrlHint: "GitHub.com は https://api.github.com、Enterprise は https://<ホスト>/api/v3",
       token: "アクセストークン (PAT)",
@@ -38,10 +33,6 @@ const STRINGS = isJa()
       addByDiscovery: "リポジトリから追加",
       listWorkflows: "ワークフロー一覧を取得",
       addSelected: "選択したものを追加",
-      addByUrl: "URL から追加",
-      urlPlaceholder: "https://github.com/owner/repo/actions/workflows/ci.yml",
-      add: "追加",
-      addManual: "手動で追加",
       polling: "ポーリング",
       pollVisible: "表示中の間隔（秒）",
       pollHidden: "非表示の間隔（秒）",
@@ -58,21 +49,17 @@ const STRINGS = isJa()
       legendStar: "★ = 興味がある（星を付けたワークフロー）",
       legendMine: "👤 = 自分の（最新の実行に、自分のアカウントが起こしたものが含まれる）",
       legendStatus: "状態: ✓ 成功 · ✗ 失敗 · 実行中 · 不通（サーバに到達できない。失敗には数えません）",
-      data: "データ",
-      exportBtn: "エクスポート（JSON、トークンを含まない）",
-      importBtn: "インポート（JSON）",
-      resetBtn: "すべてリセット",
       save: "保存（適用）",
       saved: "保存しました",
       noAccounts: "アカウントがありません。まずアカウントを追加してください。",
       noGroups: "グループがありません。",
       noWorkflows: "ワークフローはまだありません。",
       discoverNeedsRepo: "owner と repo を入力してください。",
-      urlInvalid: "GitHub の URL として解釈できませんでした。",
     }
   : {
       accounts: "Accounts (servers)",
       accountName: "Name",
+      unnamedAccount: "(Unnamed account)",
       baseUrl: "API base URL",
       baseUrlHint: "GitHub.com: https://api.github.com · Enterprise: https://<host>/api/v3",
       token: "Access token (PAT)",
@@ -95,10 +82,6 @@ const STRINGS = isJa()
       addByDiscovery: "Add from repository",
       listWorkflows: "List workflows",
       addSelected: "Add selected",
-      addByUrl: "Add from URL",
-      urlPlaceholder: "https://github.com/owner/repo/actions/workflows/ci.yml",
-      add: "Add",
-      addManual: "Add manually",
       polling: "Polling",
       pollVisible: "Interval while visible (sec)",
       pollHidden: "Interval while hidden (sec)",
@@ -115,17 +98,12 @@ const STRINGS = isJa()
       legendStar: "★ = starred (interested)",
       legendMine: "👤 = mine (the newest runs include one started by your account)",
       legendStatus: "Status: ✓ success · ✗ failure · running · unreachable (server down; never counted as a failure)",
-      data: "Data",
-      exportBtn: "Export (JSON, without tokens)",
-      importBtn: "Import (JSON)",
-      resetBtn: "Reset everything",
       save: "Save (Apply)",
       saved: "Saved",
       noAccounts: "No accounts yet. Add an account first.",
       noGroups: "No groups yet.",
       noWorkflows: "No workflows yet.",
       discoverNeedsRepo: "Enter owner and repo.",
-      urlInvalid: "Could not parse that as a GitHub URL.",
     };
 
 interface InitPayload {
@@ -138,12 +116,12 @@ interface InitPayload {
 export class SettingsPanel {
   private static current: SettingsPanel | undefined;
 
-  static show(context: vscode.ExtensionContext, board: Board, actions: SettingsActions): void {
+  static show(context: vscode.ExtensionContext, board: Board): void {
     if (SettingsPanel.current) {
       SettingsPanel.current.panel.reveal(vscode.ViewColumn.One);
       return;
     }
-    SettingsPanel.current = new SettingsPanel(context, board, actions);
+    SettingsPanel.current = new SettingsPanel(context, board);
   }
 
   private readonly panel: vscode.WebviewPanel;
@@ -151,7 +129,6 @@ export class SettingsPanel {
   private constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly board: Board,
-    private readonly actions: SettingsActions,
   ) {
     this.panel = vscode.window.createWebviewPanel(
       "actionsBoardDuo.settings",
@@ -310,22 +287,6 @@ export class SettingsPanel {
             workflows: [],
           });
         }
-        break;
-      }
-      case "export": {
-        await this.actions.exportSettings();
-        break;
-      }
-      case "import": {
-        const ok = await this.actions.importSettings();
-        if (ok) {
-          await this.postInit();
-        }
-        break;
-      }
-      case "reset": {
-        await this.actions.resetAll();
-        await this.postInit();
         break;
       }
     }

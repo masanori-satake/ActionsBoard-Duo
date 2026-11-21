@@ -157,36 +157,3 @@ export function parseJobs(json: unknown): JobInfo[] {
     });
 }
 
-/**
- * Parse a pasted GitHub Actions URL into owner/repo (and workflow file when
- * the URL points at one). Accepts:
- *   https://github.com/<owner>/<repo>
- *   https://github.com/<owner>/<repo>/actions
- *   https://github.com/<owner>/<repo>/actions/workflows/<file>.yml
- *   https://github.com/<owner>/<repo>/actions/runs/<id>
- * Returns null when the URL does not look like a GitHub repository URL.
- */
-export function parseActionsUrl(input: string): { owner: string; repo: string; workflow?: string } | null {
-  let url: URL;
-  try {
-    url = new URL((input ?? "").trim());
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    return null;
-  }
-  const parts = url.pathname.split("/").filter((p) => p !== "");
-  if (parts.length < 2) {
-    return null;
-  }
-  const [owner, repo] = parts;
-  if (!owner || !repo) {
-    return null;
-  }
-  let workflow: string | undefined;
-  if (parts[2] === "actions" && parts[3] === "workflows" && parts[4]) {
-    workflow = decodeURIComponent(parts[4]);
-  }
-  return { owner, repo, workflow };
-}

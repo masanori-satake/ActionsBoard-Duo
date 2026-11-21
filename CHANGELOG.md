@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.3] - 2026-11-21
+
+### Changed
+
+- **Settings form: the Data section is gone.** Export / Import / Reset have been removed from the form, along with the corresponding commands. Accounts and groups live in your user settings (`actionsBoardDuo.*`), which you can edit and back up directly; tokens remain in SecretStorage only, as before.
+- **Settings form: workflows are added from a repository only.** The "Add from URL" and "Add manually" flows have been removed — the free-form methods were too unconstrained and confusing. Repository discovery (list a repository's workflows, check the ones to watch, add) is the single way in.
+- **Settings form: the add-from-repository area is now its own panel.** It has a visible border and its "Add from repository" heading inside the group card, so it is clear where a new repository's workflows get added — and that they land in that group.
+- **Settings form: selects size to their content.** Dropdowns such as the failure-notification scope no longer stretch across the full form width.
+- **Settings form: account cards carry a heading.** Each account card now starts with the account's name (or "(Unnamed account)"), so several registered accounts read as distinct entries at a glance.
+
+### 日本語
+
+- **設定フォームから「データ」セクションをなくしました。** エクスポート/インポート/すべてリセットを、対応するコマンドごと削除しました。アカウントとグループはユーザー設定（`actionsBoardDuo.*`）に保存されているので、直接編集やバックアップができます。トークンは従来どおり SecretStorage のみです。
+- **設定フォームのワークフロー追加は、リポジトリからの一括追加だけにしました。** 「URL から追加」と「手動で追加」は、自由度が高すぎて設定時に戸惑うため削除しました。リポジトリのワークフロー一覧を取得し、監視するものにチェックを入れて追加する、という一つの方法に絞っています。
+- **設定フォームの「リポジトリから追加」に区切りを付けました。** グループカードの中に、枠線と「リポジトリから追加」の見出しを持つ専用パネルとして独立させました。新しいリポジトリのワークフローをどこから追加するのか、そのグループに入ることも、分かりやすくなります。
+- **設定フォームのプルダウンを内容に合った幅にしました。** 「失敗通知の範囲」などがフォームの幅いっぱいに広がらなくなります。
+- **設定フォームのアカウントカードに見出しを付けました。** 各カードの先頭にアカウント名（空のときは「（名前なしアカウント）」）が出るので、アカウントが複数あっても、それぞれが独立した登録だと一目で分かります。
+
 ## [0.1.2] - 2026-11-21
 
 ### Fixed

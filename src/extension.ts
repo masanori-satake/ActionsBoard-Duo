@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
-import { buildExport, parseImport } from "./core/config";
 import { nextExpansionMode, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
 import type { DisplayMode, ScopeFilter } from "./core/types";
@@ -152,11 +151,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register("actionsBoardDuo.openSettings", () => {
-    SettingsPanel.show(context, board, {
-      exportSettings,
-      importSettings,
-      resetAll,
-    });
+    SettingsPanel.show(context, board);
   });
 
   register("actionsBoardDuo.cycleScope", async () => {
@@ -213,57 +208,6 @@ export function activate(context: vscode.ExtensionContext): void {
     const url = workflowPageUrl(node.workflow.owner, node.workflow.repo, node.workflow.workflow, node.account.baseUrl);
     await vscode.env.openExternal(vscode.Uri.parse(url));
   });
-
-  const exportSettings = async (): Promise<void> => {
-    const config = readConfig();
-    const json = JSON.stringify(buildExport(config), null, 2);
-    const uri = await vscode.window.showSaveDialog({
-      filters: { JSON: ["json"] },
-      defaultUri: vscode.Uri.file("actionsboard-duo-settings.json"),
-    });
-    if (!uri) {
-      return;
-    }
-    await vscode.workspace.fs.writeFile(uri, Buffer.from(json, "utf8"));
-    void vscode.window.showInformationMessage(t("msg.exported"));
-  };
-
-  const importSettings = async (): Promise<boolean> => {
-    const uris = await vscode.window.showOpenDialog({
-      canSelectMany: false,
-      filters: { JSON: ["json"] },
-    });
-    if (!uris || uris.length === 0) {
-      return false;
-    }
-    try {
-      const bytes = await vscode.workspace.fs.readFile(uris[0]);
-      const config = parseImport(Buffer.from(bytes).toString("utf8"));
-      await writeConfig(config);
-      void vscode.window.showInformationMessage(t("msg.imported"));
-      return true;
-    } catch {
-      void vscode.window.showErrorMessage(t("msg.testFailed", "import"));
-      return false;
-    }
-  };
-
-  const resetAll = async (): Promise<void> => {
-    const choice = await vscode.window.showWarningMessage(t("msg.resetConfirm"), { modal: true }, t("msg.resetButton"));
-    if (choice !== t("msg.resetButton")) {
-      return;
-    }
-    const config = readConfig();
-    for (const account of config.accounts) {
-      await tokens.delete(account.id);
-    }
-    await writeConfig({ accounts: [], groups: [] });
-    void vscode.window.showInformationMessage(t("msg.resetDone"));
-  };
-
-  register("actionsBoardDuo.exportSettings", exportSettings);
-  register("actionsBoardDuo.importSettings", () => importSettings());
-  register("actionsBoardDuo.resetAll", resetAll);
 
   refreshUi();
   board.start();
