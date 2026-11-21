@@ -1,3 +1,5 @@
+import type { StatusBarCounts } from "./model";
+
 /**
  * Expansion selector for the CI board tree.
  *
@@ -30,6 +32,18 @@ export type ExpansionMode = "failures" | "running" | "all" | "collapsed" | "manu
  */
 export function shouldExpandFailedRun(jobCount: number | null): boolean {
   return jobCount === null || jobCount > 0;
+}
+
+/**
+ * Whether clicking the status bar item should open the board with the
+ * failures-only expansion applied, judged from the very counts the item
+ * displays. Something being wrong means a build failure or an
+ * unreachable server. An authentication error alone does not trigger
+ * the expansion: it is a server-side problem the failure expansion
+ * cannot show, so the click just opens the board.
+ */
+export function shouldExpandOnStatusClick(counts: StatusBarCounts): boolean {
+  return counts.failure > 0 || counts.unreachableServers > 0;
 }
 
 export class ExpansionEpoch {

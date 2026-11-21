@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v0.2.7-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v0.2.8-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -20,7 +20,7 @@ The board is a tree in the Activity Bar: **account (server) → group → workfl
 
 The name ends in "-Duo" because the extension works together with your CI servers. (The "-Solo" series works entirely on its own, locally.) The connection is read-only: the extension polls the servers you configure and never changes anything on them. Tokens are stored only in SecretStorage, never in settings files.
 
-Current version: **v0.2.7**
+Current version: **v0.2.8**
 
 ---
 
@@ -29,7 +29,7 @@ Current version: **v0.2.7**
 
 - **Two CI services** — GitHub Actions (github.com and GitHub Enterprise Server) and Bamboo (Data Center), side by side on the same board.
 - **A tree you can read at a glance** — account → group → workflow or plan → runs → jobs, matrix jobs included. Each row's icon shows its state, and a workflow's colour comes from its newest run.
-- **Status bar summary** — the counts of success, failure, and running across everything you watch, always visible. Servers that cannot be reached are counted separately, never as build failures. Click the item to open the board.
+- **Status bar summary** — the counts of success, failure, and running across everything you watch, always visible. Servers that cannot be reached are counted separately, never as build failures. Click the item to open the board: when something has failed or a server cannot be reached, the board opens with the failures expanded; otherwise the click just opens it.
 - **Filters** — show All, only Mine (runs your account started), or only Starred. A separate toggle shows starred entries only and hides everything else, groups included.
 - **Expansion buttons** — open failures only, failures and running, everything, or collapse everything. Each button keeps one fixed icon whatever the current state: a plus in a square for Expand All, a minus in a square for Collapse All.
 - **Marks** — ★ marks entries you star (toggle it from the row's right-click menu, or in the settings form). A person mark appears on a GitHub workflow when its newest runs include one your account started. Bamboo builds do not say who started them, so plans never get the person mark.
@@ -107,7 +107,7 @@ MIT — see [LICENSE](LICENSE).
 
 名前の「-Duo」は、CI サーバと組になって働くという意味です（「-Solo」シリーズは単体で、完全ローカルに動きます）。サーバへは読み取りだけです。設定したサーバを定期的に取得しに行くだけで、サーバ側のものを変更することはありません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v0.2.7**
+現在のバージョン: **v0.2.8**
 
 ---
 
@@ -116,7 +116,7 @@ MIT — see [LICENSE](LICENSE).
 
 - **2つの CI サービス** — GitHub Actions（github.com と GitHub Enterprise Server）と Bamboo（Data Center）を、同じ盤面に並べて見られます。
 - **一目で読めるツリー** — アカウント → グループ → ワークフロー／プラン → 実行 → ジョブ（マトリクスの内訳を含む）。行のアイコンが状態を示し、ワークフローの色は最新の実行で決まります。
-- **ステータスバーの要約** — 監視中の成功・失敗・実行中の件数が常に出ます。届かないサーバは別の件数として数え、ビルド失敗には数えません。クリックすると盤面が開きます。
+- **ステータスバーの要約** — 監視中の成功・失敗・実行中の件数が常に出ます。届かないサーバは別の件数として数え、ビルド失敗には数えません。クリックすると盤面が開きます。失敗や届かないサーバがあるときは、失敗したものを展開した状態で開きます。
 - **フィルター** — 「すべて」「自分の（自分のアカウントが起こした実行）」「興味がある」の切り替えと、星を付けたものだけを表示する切り替え（それ以外はグループごと隠れます）。
 - **展開ボタン** — エラーだけ開く、実行中も開く、すべて開く、すべて畳む。アイコンは状態によって変わりません（すべて開くは四角に「+」、すべて畳むは四角に「−」）。
 - **印** — ★ は星を付けたもの（行の右クリックメニューか、設定フォームで付け外しできます）。人の印は、GitHub のワークフローで、最新の実行に自分のアカウントが起こしたものが含まれるときに付きます。Bamboo のビルドには「誰が起こしたか」の情報がないため、プランに人の印は付きません。

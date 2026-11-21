@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.8] - 2026-11-21
+
+### Changed
+
+- **Clicking the status bar summary now opens the board with the failures expanded when something is wrong.** The status bar item has its own click command: it opens the board, and when the counts it displays include a build failure or an unreachable server, it applies the same "expand failures only" expansion as the title-bar button. When everything is healthy, the click only opens the panel and leaves the tree as it is. An authentication error alone does not trigger the expansion.
+
+### 日本語
+
+- **ステータスバーの要約をクリックしたとき、失敗や不通がある場合は「エラーのみ展開」で盤面が開くようになりました。** ステータスバーの項目に専用のクリック動作を持たせました。表示中の件数にビルド失敗か届かないサーバが含まれるときは、タイトルバーのボタンと同じ「エラーのみ展開」がかかります。すべて順調なときは、パネルが開くだけでツリーの展開状態は変わりません。認証エラーだけでは展開はかかりません。
+
 ## [0.2.7] - 2026-11-21
 
 ### Changed

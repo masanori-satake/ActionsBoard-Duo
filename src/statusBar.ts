@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { aggregateStatusBar } from "./core/model";
+import { aggregateStatusBar, type StatusBarCounts } from "./core/model";
 import { t } from "./i18n";
 import type { Board } from "./board";
 
@@ -10,15 +10,32 @@ import type { Board } from "./board";
  */
 export class BoardStatusBar implements vscode.Disposable {
   private readonly item: vscode.StatusBarItem;
+  /** The counts the item currently displays; the click decision reads these. */
+  private counts: StatusBarCounts = {
+    success: 0,
+    failure: 0,
+    running: 0,
+    unreachableServers: 0,
+    authErrorServers: 0,
+  };
 
   constructor() {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 90);
-    this.item.command = "actionsBoardDuo.focus";
+    // The item has its own click command: the plain "focus" command only
+    // opens the board, while a click additionally expands the failures
+    // when the displayed counts say something is wrong.
+    this.item.command = "actionsBoardDuo.statusBarClick";
     this.item.show();
+  }
+
+  /** The counts from the latest update — what the item displays now. */
+  get currentCounts(): StatusBarCounts {
+    return this.counts;
   }
 
   update(board: Board): void {
     const counts = aggregateStatusBar(board.config.groups, board.states, board.health);
+    this.counts = counts;
     const parts = [
       `$(pass) ${counts.success}`,
       `$(error) ${counts.failure}`,

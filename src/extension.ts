@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
 import { bambooBrowseUrl } from "./core/bamboo";
-import { ExpansionEpoch, shouldExpandFailedRun, type ExpansionMode } from "./core/expansion";
+import { ExpansionEpoch, shouldExpandFailedRun, shouldExpandOnStatusClick, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
 import { moveGroup, moveWatchedItem } from "./core/reorder";
 import type { DisplayMode, ScopeFilter, WatchedItem } from "./core/types";
@@ -278,6 +278,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
   register("actionsBoardDuo.focus", async () => {
     await vscode.commands.executeCommand("actionsBoardDuo.tree.focus");
+  });
+
+  // The status bar item's own click: open the board, and when the counts
+  // it displays say something is wrong (a failure or an unreachable
+  // server), open it with the failures already expanded — through the
+  // same applyExpansion path as the title-bar button, so the mode
+  // bookkeeping and epoch handling are shared. Healthy board: the click
+  // only opens/focuses the panel and leaves the expansion alone.
+  register("actionsBoardDuo.statusBarClick", async () => {
+    await vscode.commands.executeCommand("actionsBoardDuo.tree.focus");
+    if (shouldExpandOnStatusClick(statusBar.currentCounts)) {
+      await applyExpansion("failures");
+    }
   });
 
   register("actionsBoardDuo.openSettings", () => {
