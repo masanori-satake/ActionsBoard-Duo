@@ -71,7 +71,7 @@ const ja: typeof en = {
   "expansion.all": "展開: すべて",
   "expansion.collapsed": "展開: すべて畳む",
   "expansion.manual": "展開: 手動で調整中",
-  "statusbar.tooltip": "ActionsBoard-Duo — 成功 {0} · 失敗 {1} · 実行中 {2} · 不通のサーバ {3}",
+  "statusbar.tooltip": "ActionsBoard-Duo — 成功 {0} · 失敗 {1} · 実行中 {2} · サーバ不通 {3}",
   "notify.failure": "ビルドが失敗しました: {0}（{1}）",
   "notify.openRun": "実行を開く",
   "notify.outage": "CI サーバに到達できません: {0}",

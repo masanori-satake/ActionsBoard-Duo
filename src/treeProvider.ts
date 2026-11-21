@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { showsRecoveryMarker } from "./core/liveness";
 import { visibleGroups, workflowIsMine } from "./core/model";
+import { isMutedRun } from "./core/status";
 import type {
   AccountConfig,
   DisplayMode,
@@ -330,7 +331,13 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     const item = new vscode.TreeItem(run.branch, vscode.TreeItemCollapsibleState.Collapsed);
     item.contextValue = "run";
     const s = STATUS_ICON[run.status];
-    item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(s.color));
+    // Only the workflow's newest run overall carries its status colour;
+    // branch runs for other runs keep the glyph but are muted to gray, so a
+    // stale failure on a side branch does not read as the current state.
+    const state =
+      node.account && node.workflow ? this.board.states.get(workflowKey(node.account.id, node.workflow)) : undefined;
+    const color = isMutedRun(state?.latest, run) ? "charts.gray" : s.color;
+    item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(color));
     const parts: string[] = [];
     if (run.title) {
       parts.push(run.title);

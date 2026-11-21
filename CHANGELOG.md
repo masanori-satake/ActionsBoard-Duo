@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.12] - 2026-11-21
+
+### Changed
+
+- **Branch runs other than the workflow's newest run are shown muted.** A workflow row's status colour reflects its newest run overall, but every branch-run row under it used to carry its own full status colour — so an old failed run on a side branch showed a full red ✗ under a green, successful workflow, which read as a contradiction. Now only the newest run keeps its status colour; the other branch runs keep the same status glyph but in gray. Job rows are unchanged.
+- **Workflows added via repository discovery now start as favorites.** A workflow the user explicitly picked to watch is registered with the star on, so it shows up under the starred scope and the favorites-only display right away. Existing saved workflows are untouched.
+- **The settings form's star column is headed "Favorite" (お気に入り).** The column that toggles each workflow's star was labelled just "Star" / 「星」; it now says what the mark means.
+- **The status bar tooltip's Japanese wording for unreachable servers now reads 「サーバ不通」.** The previous 「不通のサーバ」 phrasing was inverted; the counts and the behaviour are unchanged.
+
+### 日本語
+
+- **ワークフロー全体の最新実行以外のブランチ別ランを、淡い表示にしました。** ワークフロー行の状態色は全体の最新実行を表しますが、その下のブランチ別ランは各々が状態色を持っていたため、脇のブランチの古い失敗が、成功しているワークフローの下に赤い ✗ のままで並び、矛盾して見えていました。今は最新実行だけが状態色を持ち、他のブランチ別ランは同じ形のアイコンのままグレーで示します。ジョブ行は従来どおりです。
+- **リポジトリから追加したワークフローは、最初から「お気に入り」になりました。** 利用者が選んで監視対象に入れたワークフローには星が付いた状態で登録されるので、星のスコープや「お気に入りだけ」の表示にそのまま現れます。既に保存されているワークフローには影響しません。
+- **設定画面の星の列の見出しを「お気に入り」にしました。** ワークフローごとの星を切り替える列は「星」とだけ出ていましたが、その印の意味が分かる文言にしました。
+- **ステータスバーのツールチップで、到達できないサーバの日本語表記を「サーバ不通」にしました。** 従来の「不通のサーバ」は語順が不自然だったための文言修正で、件数や動作は変わりません。
+
 ## [0.1.11] - 2026-11-21
 
 ### Changed

@@ -210,7 +210,7 @@
         onclick: () => {
           for (const { wf, cb } of checks) {
             if (cb.checked) {
-              group.workflows.push({ owner, repo, workflow: wf.file });
+              group.workflows.push({ owner, repo, workflow: wf.file, starred: true });
             }
           }
           render();
