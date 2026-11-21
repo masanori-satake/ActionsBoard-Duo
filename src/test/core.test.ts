@@ -14,7 +14,7 @@ import { classifyProbe, livenessTransition, showsRecoveryMarker } from "../core/
 import { aggregateStatusBar, isFreshFailure, selectBranchRuns, workflowVisible } from "../core/model";
 import { normaliseStatus } from "../core/status";
 import type { AccountHealth, GroupConfig, RunInfo, WatchedWorkflow, WorkflowState } from "../core/types";
-import { workflowKey } from "../core/types";
+import { groupDisplayName, workflowKey } from "../core/types";
 
 // ---------- status normalisation ----------
 
@@ -274,4 +274,21 @@ test("parseImport rejects junk", () => {
   assert.throws(() =>
     parseImport(JSON.stringify({ accounts: [], groups: [{ id: "g", name: "G", accountId: "missing", workflows: [] }] })),
   );
+});
+
+// ---------- group display name ----------
+
+test("groupDisplayName: a named group shows its name", () => {
+  const g: GroupConfig = { id: "g1", name: "Release", accountId: "a1", workflows: [] };
+  assert.equal(groupDisplayName(g, "(Unnamed group)"), "Release");
+});
+
+test("groupDisplayName: empty or whitespace-only name falls back to the placeholder", () => {
+  const empty: GroupConfig = { id: "g1", name: "", accountId: "a1", workflows: [] };
+  const blank: GroupConfig = { id: "g2", name: "   ", accountId: "a1", workflows: [] };
+  assert.equal(groupDisplayName(empty, "（名前なしグループ）"), "（名前なしグループ）");
+  assert.equal(groupDisplayName(blank, "（名前なしグループ）"), "（名前なしグループ）");
+  // The stored name is never rewritten by the display helper.
+  assert.equal(empty.name, "");
+  assert.equal(blank.name, "   ");
 });

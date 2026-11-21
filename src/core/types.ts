@@ -108,3 +108,12 @@ export function workflowKey(accountId: string, w: WatchedWorkflow): string {
 export function workflowDisplayName(w: WatchedWorkflow): string {
   return w.alias && w.alias.trim() !== "" ? w.alias : w.workflow;
 }
+
+/**
+ * Tree label for a group: its name, or the caller-supplied localised
+ * placeholder when the name is empty or whitespace-only. Display only —
+ * the stored name is never rewritten.
+ */
+export function groupDisplayName(g: GroupConfig, unnamed: string): string {
+  return g.name.trim() !== "" ? g.name : unnamed;
+}

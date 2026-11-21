@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.2] - 2026-11-21
+
+### Fixed
+
+- **Unnamed groups no longer look like numbers.** A group whose name was left empty rendered in the tree with an empty label, so only its workflow count showed — a group with 11 workflows appeared to be named "11". Empty or whitespace-only group names now display a localised placeholder, "(Unnamed group)", in the tree. This is a display-only change: stored settings are untouched, and naming a group remains optional.
+
+### 日本語
+
+- **名前のないグループが数字のように見える問題を直しました。** グループ名を空のままにすると、ツリーでラベルが空になり、ワークフローの件数だけが表示されていました（11件のグループが「11」という名前のように見えていました）。空、または空白のみのグループ名は、ツリーで「（名前なしグループ）」と表示されるようになりました。表示だけの変更で、保存されている設定は変わりません。グループ名は引き続き任意です。
+
 ## [0.1.1] - 2026-11-21
 
 ### Fixed

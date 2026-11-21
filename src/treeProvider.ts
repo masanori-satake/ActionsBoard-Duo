@@ -11,7 +11,7 @@ import type {
   ScopeFilter,
   WatchedWorkflow,
 } from "./core/types";
-import { workflowDisplayName, workflowKey } from "./core/types";
+import { groupDisplayName, workflowDisplayName, workflowKey } from "./core/types";
 import { isJa, t } from "./i18n";
 import type { Board } from "./board";
 
@@ -186,7 +186,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         return this.accountItem(node);
       case "group": {
         const item = new vscode.TreeItem(
-          node.group!.name,
+          groupDisplayName(node.group!, t("tree.unnamedGroup")),
           (node.children ?? []).length > 0
             ? vscode.TreeItemCollapsibleState.Collapsed
             : vscode.TreeItemCollapsibleState.None,
