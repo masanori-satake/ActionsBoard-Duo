@@ -11,6 +11,8 @@
   let discovered = {}; // groupId -> [{ name, file }]
   let discoveredPlans = {}; // groupId -> [{ projectKey, projectName, planKey, name }]
   let discoveryGroupId = null; // destination group of the shared discovery panel
+  let discoverySelect = null; // the destination <select> element, while it is shown
+  let accountSelects = []; // the account <select> elements in the group cards
   let requestSeq = 0;
   const pending = {}; // requestId -> callback
 
@@ -82,6 +84,7 @@
     const nameInput = textInput(account.name, (v) => {
       account.name = v;
       heading.textContent = accountDisplayName(account);
+      refreshAccountOptions(account);
     });
     const kindSelect = h("select", null);
     for (const [value, label] of [
@@ -210,7 +213,34 @@
     return group.name && group.name.trim() !== "" ? group.name : S.unnamedGroup;
   }
 
+  // In-place label refreshes for the selects whose options are built
+  // from names at render time. A rename must not trigger a full
+  // render() (that would rebuild the text input being typed into and
+  // drop focus), so the option text is patched where it stands; the
+  // option values and the select's current selection are untouched.
+  function refreshDiscoveryOption(group) {
+    if (!discoverySelect) {
+      return;
+    }
+    for (const opt of discoverySelect.options) {
+      if (opt.value === group.id) {
+        opt.textContent = groupLabel(group);
+      }
+    }
+  }
+
+  function refreshAccountOptions(account) {
+    for (const select of accountSelects) {
+      for (const opt of select.options) {
+        if (opt.value === account.id) {
+          opt.textContent = account.name;
+        }
+      }
+    }
+  }
+
   function discoveryPanel() {
+    discoverySelect = null;
     const group = discoveryGroup();
     if (!group) {
       return null;
@@ -219,6 +249,7 @@
     const children = [];
     if (state.config.groups.length > 1) {
       const select = h("select", null);
+      discoverySelect = select;
       for (const g of state.config.groups) {
         select.appendChild(h("option", { value: g.id, selected: g.id === group.id }, groupLabel(g)));
       }
@@ -407,6 +438,7 @@
   function groupCard(group) {
     const isBamboo = groupKind(group) === "bamboo";
     const accountSelect = h("select", null);
+    accountSelects.push(accountSelect);
     for (const a of state.config.accounts) {
       const opt = h("option", { value: a.id, selected: a.id === group.accountId }, a.name);
       accountSelect.appendChild(opt);
@@ -442,7 +474,13 @@
       h(
         "div",
         { class: "row" },
-        labeled(S.groupName, textInput(group.name, (v) => (group.name = v))),
+        labeled(
+          S.groupName,
+          textInput(group.name, (v) => {
+            group.name = v;
+            refreshDiscoveryOption(group);
+          }),
+        ),
         labeled(S.groupAccount, accountSelect),
         removeButton(() => {
           state.config.groups = state.config.groups.filter((g) => g.id !== group.id);
@@ -473,6 +511,7 @@
 
   function render() {
     if (!state) return;
+    accountSelects = [];
     const { config, settings } = state;
     const panel = discoveryPanel();
     const scopeSelect = h("select", null);

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.5] - 2026-11-21
+
+### Fixed
+
+- **Renaming a group now updates the discovery panel's destination selector immediately.** The shared "add from repository" panel builds its destination options when the form is drawn, so a name typed into a group's name field never appeared there — the group kept showing as "(unnamed group)" until the form was reopened. The matching option's label is now patched in place as you type (no redraw, so the input keeps focus and the selector keeps its current choice). Account renames get the same treatment: the account dropdowns on the group cards follow the name being typed.
+
+### 日本語
+
+- **グループ名の変更が、追加パネルの追加先セレクターにその場で反映されるようになりました。** 共用の「リポジトリから追加」パネルの選択肢はフォーム描画時点の名前で作られていたため、グループ名欄に入力した名前がそこへ出ず、フォームを開き直すまで「（名前なしグループ）」のままになっていました。今は入力に合わせて該当する選択肢の表示だけをその場で書き換えます（再描画しないので、入力欄のフォーカスもセレクターの選択状態も保たれます）。アカウント名の変更も同様に、グループカードのアカウント選択へその場で反映されます。
+
 ## [0.2.4] - 2026-11-21
 
 ### Changed
