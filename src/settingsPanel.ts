@@ -50,6 +50,7 @@ const STRINGS = isJa()
       legendMine: "👤 = 自分の（最新の実行に、自分のアカウントが起こしたものが含まれる）",
       legendStatus: "状態: ✓ 成功 · ✗ 失敗 · 実行中 · 不通（サーバに到達できない。失敗には数えません）",
       save: "保存（適用）",
+      cancel: "キャンセル",
       saved: "保存しました",
       noAccounts: "アカウントがありません。まずアカウントを追加してください。",
       noGroups: "グループがありません。",
@@ -99,6 +100,7 @@ const STRINGS = isJa()
       legendMine: "👤 = mine (the newest runs include one started by your account)",
       legendStatus: "Status: ✓ success · ✗ failure · running · unreachable (server down; never counted as a failure)",
       save: "Save (Apply)",
+      cancel: "Cancel",
       saved: "Saved",
       noAccounts: "No accounts yet. Add an account first.",
       noGroups: "No groups yet.",
@@ -165,7 +167,10 @@ export class SettingsPanel {
 <body>
 <div id="app"></div>
 <div class="footer">
-  <button id="save" class="primary"></button>
+  <div class="footer-buttons">
+    <button id="save" class="primary"></button>
+    <button id="cancel"></button>
+  </div>
   <span id="save-status" role="status"></span>
 </div>
 <script nonce="${nonce}">window.ABD_STRINGS = ${JSON.stringify(STRINGS)};</script>
@@ -195,6 +200,12 @@ export class SettingsPanel {
   private async onMessage(msg: Record<string, unknown>): Promise<void> {
     switch (msg.type) {
       case "ready": {
+        await this.postInit();
+        break;
+      }
+      case "cancel": {
+        // Discard every unsaved edit: re-send the init payload built from
+        // the saved config/settings so the form rebuilds itself from them.
         await this.postInit();
         break;
       }

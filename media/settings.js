@@ -349,8 +349,16 @@
   }
 
   const saveBtn = document.getElementById("save");
+  const cancelBtn = document.getElementById("cancel");
   const saveStatus = document.getElementById("save-status");
   saveBtn.textContent = S.save;
+  cancelBtn.textContent = S.cancel;
+  cancelBtn.addEventListener("click", () => {
+    // Ask the extension to re-send the saved state; the init handler below
+    // rebuilds the whole form from it, discarding every unsaved edit.
+    saveStatus.textContent = "";
+    vscode.postMessage({ type: "cancel" });
+  });
   saveBtn.addEventListener("click", () => {
     if (!state) return;
     vscode.postMessage({
@@ -370,6 +378,8 @@
     if (msg.type === "init") {
       state = msg.payload;
       tokens = {};
+      removedAccountIds = [];
+      discovered = {};
       render();
     } else if (msg.type === "testResult" || msg.type === "discovered") {
       const cb = pending[msg.requestId];

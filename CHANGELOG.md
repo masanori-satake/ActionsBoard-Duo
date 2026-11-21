@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.4] - 2026-11-21
+
+### Changed
+
+- **Settings form: Save now has a Cancel partner, centred as a pair.** The lone Save button sat at the left edge of the form footer and looked out of place. Save and Cancel now sit side by side in the centre of the footer. Cancel discards every unsaved edit — including typed-but-unsaved tokens and accounts marked for removal — and restores the form to the last-saved state; the panel stays open. The form remains Apply-model: nothing is written until Save is pressed.
+
+### 日本語
+
+- **設定フォームの「保存（適用）」に「キャンセル」を対にして、中央に並べました。** フッターの左端に保存ボタンだけがあると変な印象だったためです。キャンセルは、入力途中のトークンや削除予定のアカウントを含む未保存の編集をすべて破棄し、最後に保存した状態にフォームを戻します。パネルは閉じません。フォームは引き続き適用モデルで、保存を押すまで何も書き込まれません。
+
 ## [0.1.3] - 2026-11-21
 
 ### Changed
