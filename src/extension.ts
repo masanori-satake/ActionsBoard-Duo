@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
 import { buildExport, parseImport } from "./core/config";
+import { nextExpansionMode, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
 import type { DisplayMode, ScopeFilter } from "./core/types";
 import { t } from "./i18n";
@@ -8,8 +9,6 @@ import { SettingsPanel } from "./settingsPanel";
 import { BoardStatusBar } from "./statusBar";
 import { readConfig, TokenStore, writeConfig } from "./store";
 import { BoardTreeProvider, type BoardNode } from "./treeProvider";
-
-type ExpansionMode = "failures" | "running" | "all" | "collapsed" | "manual";
 
 const SCOPE_ORDER: ScopeFilter[] = ["all", "mine", "starred"];
 
@@ -50,7 +49,7 @@ export function activate(context: vscode.ExtensionContext): void {
             : expansionMode === "collapsed"
               ? t("expansion.collapsed")
               : t("expansion.manual");
-    treeView.message = `${scopeText} · ${displayText} · ${expansionText}\n${t("tree.legend")}`;
+    treeView.message = `${scopeText} · ${displayText} · ${expansionText}`;
   };
 
   const refreshUi = () => {
@@ -179,6 +178,7 @@ export function activate(context: vscode.ExtensionContext): void {
     refreshUi();
   });
 
+  register("actionsBoardDuo.cycleExpansion", () => applyExpansion(nextExpansionMode(expansionMode)));
   register("actionsBoardDuo.expandFailures", () => applyExpansion("failures"));
   register("actionsBoardDuo.expandRunning", () => applyExpansion("running"));
   register("actionsBoardDuo.expandAll", () => applyExpansion("all"));

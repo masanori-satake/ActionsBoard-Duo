@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1] - 2026-11-21
+
+### Fixed
+
+- **Title bar decluttered.** The four expansion buttons (failures only / running too / expand all / collapse all) used look-alike glyphs and crowded the view title bar. They are now consolidated into a single "Switch Expansion" button that cycles through the four modes in order; the individual commands remain available from the Command Palette. The title bar now carries five buttons: refresh, scope, display mode, expansion, settings.
+- **View message is one line.** The board's message showed the current state plus the ★ / person mark legend on extra lines, permanently taking vertical space. It now shows only the one-line state (scope · display · expansion, including "adjusted manually"); the legend remains in the settings form and in row tooltips.
+
+### 日本語
+
+- **タイトルバーを整理しました。** 展開の4ボタン（エラーのみ/実行中も/すべて展開/すべて畳む）は似た形のグリフで並び、タイトルバーを圧迫していました。1つの「展開を切り替え」ボタンにまとめ、クリックで4つのモードを順に切り替えるようにしました。個別のコマンドはコマンドパレットから引き続き使えます。タイトルバーのボタンは、更新・スコープ・表示モード・展開・設定の5つになりました。
+- **ビューのメッセージを1行にしました。** 状態表示に加えて ★/人の印の凡例まで常時表示され、縦の場所を取っていました。今は状態（スコープ · 表示 · 展開。「手動で調整中」も含みます）の1行だけを表示します。凡例は設定フォームと行のツールチップに残しています。
+
 ## [0.1.0] - 2026-11-21
 
 ### Added
