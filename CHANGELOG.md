@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.0] - 2026-11-21
+
+### Added
+
+- **First public release.** ActionsBoard-Duo is a quiet CI board for VS Code: it shows GitHub Actions and Bamboo (Data Center) build status as a tree in the Activity Bar — account (server) → group → workflow or plan → branch runs and builds → jobs, including matrix breakdowns.
+- **Status bar summary, always present.** Glyphs and counts for success / failure / running, with unreachable servers as their own count — an outage is never counted as a build failure. Clicking the item opens the board; when something has failed or a server is unreachable, it opens with the failures expanded.
+- **Notifications** for build failures, server outages, and recoveries — outage and recovery can each be switched off, failure notifications can be scoped to all / mine / starred, and authentication errors have their own setting.
+- **Server liveness monitoring** on its own cycle, separate from build polling. Reachable / auth error / unreachable stay distinct; while a server is unreachable, its rows say so and show when it last answered, and a recovery marker appears for a while when it answers again.
+- **Groups, marks, and filters.** Groups bundle workflows and plans across repositories and projects. Rows carry a ★ mark for starred entries and a ♟ mark when a workflow's newest runs include one started by your own account. Title-bar scope filters (All / Mine / Starred), a starred-only display mode, and expansion presets (failures only, failures and running, expand all, collapse all) keep the board focused.
+- **Drag to reorder.** Drag a workflow or plan to reorder it or move it into another group of the same account; drag a group to reorder groups. The order is saved to settings and used everywhere.
+- **GitHub Pages tracking.** When a workflow's newest run succeeds and its repository publishes a Pages site, the row also shows the deployment state (deploying / deployed / deployment failed).
+- **One-screen settings form** (Apply model) for accounts, groups, watched entries, polling intervals, and notifications. Workflows are added from one shared discovery panel by pasting a repository URL; Bamboo plans are picked from a checklist grouped by project.
+- **Read-only by design.** Polling is GET-only — the extension never changes anything on your CI servers and offers no rerun or cancel. Tokens live only in SecretStorage, never in settings files, and there is no tracking or telemetry.
+
+### 日本語
+
+- **初の公開リリース。** ActionsBoard-Duo は、GitHub Actions と Bamboo（Data Center）のビルド状態をアクティビティバーのツリーで示す、静かな CI ボードです: アカウント（サーバ）→ グループ → ワークフロー／プラン → ブランチ別の実行・ビルド → ジョブ（マトリクスの内訳を含む）。
+- **常駐のステータスバー要約。** 成功/失敗/実行中のグリフと件数に、不通のサーバを独立の件数として並べます。不通をビルド失敗に数えることはありません。クリックで盤面が開き、失敗や不通があるときは「エラーのみ展開」で開きます。
+- **通知。** ビルド失敗・サーバ不通・復旧を通知します。不通と復旧は個別にオフでき、失敗通知の範囲は「すべて / 自分が実行したものだけ / お気に入りだけ」から選べます。認証エラーの通知は独立した設定です。
+- **サーバの死活監視。** ビルド取得とは別周期でアカウントごとに確認し、到達可/認証エラー/到達不可を区別します。到達できないサーバの行はその旨と最終確認時刻を示し、応答が戻るとしばらく復旧の印が出ます。
+- **グループ・印・フィルター。** グループはリポジトリやプロジェクトを跨いでワークフローとプランを束ねます。行には、お気に入りの ★ と、最新の実行に自分のアカウントが起こしたものが含まれるときの ♟ の印が付きます。タイトルバーのスコープ（すべて / 自分の / お気に入り）、お気に入りだけを表示するモード、展開のプリセット（エラーのみ / 実行中も / すべて展開 / すべて畳む）で、盤面を絞り込めます。
+- **ドラッグで並び替え。** ワークフローやプランをドラッグして並び替えたり、同じアカウントの別グループへ移したりできます。グループ自体の並び替えも可能です。順序は設定に保存され、どこでも同じ順序になります。
+- **GitHub Pages の追跡。** ワークフローの最新の実行が成功し、そのリポジトリが Pages サイトを公開していると、行にデプロイの状態（デプロイ中 / デプロイ済み / デプロイ失敗）も表示します。
+- **一画面の設定フォーム**（適用モデル）で、アカウント、グループ、監視対象、ポーリング間隔、通知を扱います。ワークフローは、リポジトリ URL を貼って使う共用の発見パネルから追加し、Bamboo のプランはプロジェクト別のチェックリストから選びます。
+- **読み取り専用が前提です。** ポーリングは GET のみで、CI サーバ側に変更を加えることはなく、再実行やキャンセルもありません。トークンは SecretStorage のみに置き、設定ファイルには書きません。トラッキングやテレメトリもありません。
+
 ## [0.3.0] - 2026-11-21
 
 ### Security
