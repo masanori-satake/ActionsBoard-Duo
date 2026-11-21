@@ -37,13 +37,13 @@ export function shouldExpandFailedRun(jobCount: number | null): boolean {
 /**
  * Whether clicking the status bar item should open the board with the
  * failures-only expansion applied, judged from the very counts the item
- * displays. Something being wrong means a build failure or an
- * unreachable server. An authentication error alone does not trigger
- * the expansion: it is a server-side problem the failure expansion
- * cannot show, so the click just opens the board.
+ * displays. Something being wrong means a build failure, an unreachable
+ * server, or an authentication error. An authentication error counts
+ * too: the click leads the user to the board, where the affected
+ * server is expanded and shows the error and its reason.
  */
 export function shouldExpandOnStatusClick(counts: StatusBarCounts): boolean {
-  return counts.failure > 0 || counts.unreachableServers > 0;
+  return counts.failure > 0 || counts.unreachableServers > 0 || counts.authErrorServers > 0;
 }
 
 export class ExpansionEpoch {

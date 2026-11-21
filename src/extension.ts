@@ -282,8 +282,9 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   // The status bar item's own click: open the board, and when the counts
-  // it displays say something is wrong (a failure or an unreachable
-  // server), open it with the failures already expanded — through the
+  // it displays say something is wrong (a failure, an unreachable
+  // server, or an authentication error), open it with the failures
+  // already expanded — through the
   // same applyExpansion path as the title-bar button, so the mode
   // bookkeeping and epoch handling are shared. Healthy board: the click
   // only opens/focuses the panel and leaves the expansion alone.

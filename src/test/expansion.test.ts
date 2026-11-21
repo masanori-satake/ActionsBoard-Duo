@@ -59,9 +59,9 @@ test("shouldExpandOnStatusClick: an unreachable server opens with failures expan
   assert.equal(shouldExpandOnStatusClick(counts({ success: 4, unreachableServers: 1 })), true);
 });
 
-test("shouldExpandOnStatusClick: an authentication error alone does not expand", () => {
-  assert.equal(shouldExpandOnStatusClick(counts({ authErrorServers: 1 })), false);
-  assert.equal(shouldExpandOnStatusClick(counts({ authErrorServers: 2, failure: 1 })), true);
+test("shouldExpandOnStatusClick: an authentication error alone opens with failures expanded", () => {
+  assert.equal(shouldExpandOnStatusClick(counts({ authErrorServers: 1 })), true);
+  assert.equal(shouldExpandOnStatusClick(counts({ success: 4, authErrorServers: 2 })), true);
 });
 
 test("ExpansionEpoch: only the latest generation is current", () => {

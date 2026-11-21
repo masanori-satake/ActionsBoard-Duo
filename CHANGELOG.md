@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.1] - 2026-11-21
+
+### Changed
+
+- **Status bar click now expands for authentication errors too.** Clicking the status bar item opens the board with the failures expanded when something is wrong; that trigger now also covers servers with an authentication error (previously only build failures and unreachable servers). The click leads you to the board, where the affected server shows the authentication error and its reason.
+
+### 日本語
+
+- **ステータスバーのクリックで、認証エラーのときも展開するようになりました。** ステータスバーの項目をクリックすると、何か問題があるときは失敗を展開した状態で盤面が開きます。その対象に、認証エラーのサーバも含めるようにしました（従来はビルド失敗と到達できないサーバだけでした）。クリックで盤面に誘導され、対象のサーバに認証エラーとその理由が表示されます。
+
 ## [1.0.0] - 2026-11-21
 
 ### Added
