@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8] - 2026-11-21
+
+### Fixed
+
+- **A run with no jobs no longer says "no runs yet".** Expanding a run whose jobs list is empty — which legitimately happens when a run fails at startup before any job is created — showed the placeholder "no runs yet" under it. Under a failed run that read as if the run itself had never happened, contradicting its failure state. The jobs level now has its own text, "No jobs recorded". The workflow row's "no runs yet" (for a workflow with no runs at all) is unchanged.
+
+### 日本語
+
+- **ジョブがないランの下に「実行はまだありません」と出ないようにしました。** 起動直後に失敗してジョブが作られなかったランなど、ジョブ一覧が空になる正当なケースで、展開すると「実行はまだありません」と表示されていました。失敗したランの下では「そのラン自体がまだ実行されていない」ように読め、失敗の状態と矛盾して見えます。ジョブ階層専用の文言「ジョブはありません」に変えました。ワークフロー行の「実行はまだありません」（ランが1件もない場合）は従来どおりです。
+
 ## [0.1.7] - 2026-11-21
 
 ### Changed

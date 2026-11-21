@@ -366,7 +366,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         parent: node,
       }));
       if (node.children.length === 0) {
-        node.children = [{ kind: "info", id: `info:no-jobs:${node.id}`, infoText: t("tree.noRuns"), parent: node }];
+        node.children = [{ kind: "info", id: `info:no-jobs:${node.id}`, infoText: t("tree.noJobs"), parent: node }];
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
