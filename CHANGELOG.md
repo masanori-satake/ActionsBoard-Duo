@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.14] - 2026-11-21
+
+### Fixed
+
+- **No more 復旧 marker after a restart.** The recovery marker is only meaningful for an outage and recovery the user could have witnessed in the current session, but it leaked across restarts two ways: health persisted by a previous session could still carry a marker, and the first (silent baseline) probe of a new session set the marker again when it found a previously unreachable server reachable — so the tree greeted the user with 復旧 even though, from their point of view, nothing had happened. Persisted health now has the marker stripped when it is loaded at startup, and a recovery applied during the baseline cycle applies the reachable state without the marker. Mid-session behaviour is unchanged: a server that goes down and comes back during the same session still shows 復旧.
+
+### Changed
+
+- **The settings form's remove buttons are now red trash-can icons.** The three text "Remove" controls (account, group, workflow row) are icon buttons showing a trash can in the same danger red the text had, with the remove label kept as the tooltip and accessible name. Click behaviour is unchanged.
+- **The settings form's add buttons now look like buttons.** "Add account" and "Add group" rendered as plain text and were easy to miss as actions; they — and the discovery panel's "List workflows" and "Add selected" — now have an outline-button look with accent-coloured text, and the add actions carry a leading "+".
+
+### 日本語
+
+- **再起動後に「復旧」と表示される問題を直しました。** 復旧の印は、そのセッションで利用者が見ていられた不通と復旧に対してだけ意味がありますが、2つの経路で再起動を越えて残っていました。前のセッションが保存した死活状態に印が残っている場合と、新しいセッションの最初の（通知を出さない基準決めの）確認で、以前不通だったサーバへの到達が分かったときに印が付き直す場合です。そのため、何も起きていないはずなのにツリーに「復旧」と出ていました。今は、起動時に読み込む保存済みの状態から印を取り除き、基準決めの周期で復旧が分かった場合も、到達可の状態だけを反映して印は付けません。セッションの途中で落ちて戻ったサーバには、従来どおり「復旧」が出ます。
+- **設定画面の「削除」を、赤いゴミ箱のアイコンにしました。** アカウント・グループ・ワークフロー行の3つの削除操作は、文字のときと同じ危険色の赤でゴミ箱のシンボルを表示するアイコンボタンになりました。「削除」の文言はツールチップと読み上げ用の名前として残しています。クリック時の動作は変わりません。
+- **設定画面の追加ボタンが、ボタンらしく見えるようになりました。** 「アカウントを追加」「グループを追加」はただの文字列のように見えて、押せることに気づきにくい状態でした。これらと、リポジトリから追加の「ワークフロー一覧を取得」「選択したものを追加」に、アクセント色の文字と控えめな枠線のボタンらしい見た目を与え、追加の操作には先頭に「+」を付けました。
+
 ## [0.1.13] - 2026-11-21
 
 ### Fixed

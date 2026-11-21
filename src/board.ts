@@ -11,7 +11,14 @@ import {
   userUrl,
   type WorkflowSummary,
 } from "./core/github";
-import { classifyProbe, CONFIRM_PROBE_DELAY_MS, decideProbe, livenessTransition } from "./core/liveness";
+import {
+  classifyProbe,
+  CONFIRM_PROBE_DELAY_MS,
+  decideProbe,
+  livenessTransition,
+  nextRecoveredAt,
+  withoutRecoveryMarker,
+} from "./core/liveness";
 import { isFreshFailure, selectBranchRuns } from "./core/model";
 import type {
   AccountConfig,
@@ -63,7 +70,9 @@ export class Board implements vscode.Disposable {
   ) {
     this.config = readConfig();
     for (const [id, h] of readHealth(globalState)) {
-      this.health.set(id, h);
+      // A recovery marker never survives a restart: it is only meaningful
+      // for an outage and recovery witnessed within this session.
+      this.health.set(id, withoutRecoveryMarker(h));
     }
   }
 
@@ -212,12 +221,12 @@ export class Board implements vscode.Disposable {
           state: next,
           since: prev && prev.state === next ? prev.since : now,
           lastOkAt: next === "reachable" ? now : prev?.lastOkAt,
-          recoveredAt: transition.recovered ? now : prev?.recoveredAt,
+          // The baseline cycle is silent about markers as well as toasts:
+          // a recovery it applies was not witnessed, so it sets no 復旧
+          // marker (see nextRecoveredAt).
+          recoveredAt: nextRecoveredAt(transition, prev?.recoveredAt, now, !silent),
           login: login ?? prev?.login,
         };
-        if (next !== "reachable") {
-          health.recoveredAt = prev?.recoveredAt;
-        }
         this.health.set(account.id, health);
         if (!silent && transition.becameUnreachable && settings.notifyOnOutage) {
           void vscode.window.showWarningMessage(t("notify.outage", account.name));

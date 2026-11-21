@@ -9,7 +9,14 @@ import {
   parseWorkflows,
   webBaseFromApi,
 } from "../core/github";
-import { classifyProbe, decideProbe, livenessTransition, showsRecoveryMarker } from "../core/liveness";
+import {
+  classifyProbe,
+  decideProbe,
+  livenessTransition,
+  nextRecoveredAt,
+  showsRecoveryMarker,
+  withoutRecoveryMarker,
+} from "../core/liveness";
 import { aggregateStatusBar, isFreshFailure, selectBranchRuns, workflowVisible } from "../core/model";
 import { isMutedRun, normaliseStatus } from "../core/status";
 import type { AccountHealth, GroupConfig, RunInfo, WatchedWorkflow, WorkflowState } from "../core/types";
@@ -254,6 +261,38 @@ test("recovery marker window", () => {
   assert.equal(showsRecoveryMarker(now - 60_000, now), true);
   assert.equal(showsRecoveryMarker(now - 20 * 60_000, now), false);
   assert.equal(showsRecoveryMarker(undefined, now), false);
+});
+
+test("nextRecoveredAt sets the marker only for a witnessed recovery", () => {
+  const now = 2_000_000_000;
+  const recovery = livenessTransition("unreachable", "reachable");
+  // Mid-session recovery: the marker is set, as before.
+  assert.equal(nextRecoveredAt(recovery, undefined, now, true), now);
+  // The same recovery applied by the silent startup baseline sets no
+  // marker — and clears one the previous state somehow still carried.
+  assert.equal(nextRecoveredAt(recovery, undefined, now, false), undefined);
+  assert.equal(nextRecoveredAt(recovery, now - 60_000, now, false), undefined);
+  // No recovery edge: the previous marker carries over untouched.
+  const steady = livenessTransition("reachable", "reachable");
+  assert.equal(nextRecoveredAt(steady, now - 60_000, now, true), now - 60_000);
+  assert.equal(nextRecoveredAt(steady, undefined, now, false), undefined);
+  const outage = livenessTransition("reachable", "unreachable");
+  assert.equal(nextRecoveredAt(outage, now - 60_000, now, true), now - 60_000);
+});
+
+test("withoutRecoveryMarker drops a persisted marker and keeps the rest", () => {
+  const stored: AccountHealth = { state: "reachable", since: 10, lastOkAt: 20, recoveredAt: 15, login: "me" };
+  const loaded = withoutRecoveryMarker(stored);
+  assert.equal(loaded.recoveredAt, undefined);
+  assert.equal(loaded.state, "reachable");
+  assert.equal(loaded.since, 10);
+  assert.equal(loaded.lastOkAt, 20);
+  assert.equal(loaded.login, "me");
+  // The stored object itself is not mutated.
+  assert.equal(stored.recoveredAt, 15);
+  // No marker to drop: the health is returned unchanged.
+  const plain: AccountHealth = { state: "unreachable", since: 5 };
+  assert.equal(withoutRecoveryMarker(plain), plain);
 });
 
 // ---------- status bar aggregation ----------

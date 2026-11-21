@@ -97,6 +97,33 @@ button.primary:hover {
 button.danger {
   color: var(--vscode-errorForeground);
 }
+/* Remove buttons are icon-only: a red trash can (see removeButton in
+   settings.js). The icon strokes use currentColor, so .danger's red
+   carries over. */
+button.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+}
+button.icon-btn .btn-icon {
+  display: inline-flex;
+  line-height: 0;
+}
+/* Standalone actions (add account / add group / list workflows / add
+   selected) must read as buttons, not plain text: accent-coloured label
+   with a subtle outline-button frame and a hover state. */
+button.add-btn {
+  color: var(--vscode-textLink-foreground);
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid var(--vscode-panel-border);
+  padding: 6px 14px;
+}
+button.add-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-textLink-activeForeground);
+}
 .hint {
   font-size: 0.85em;
   color: var(--vscode-descriptionForeground);

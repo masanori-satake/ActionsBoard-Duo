@@ -41,6 +41,25 @@
     return h("label", null, text, control);
   }
 
+  // Trash-can icon for the remove buttons. Inline SVG (the webview has no
+  // codicon font); the strokes follow the button's colour, which .danger
+  // sets to the error red. The accessible name stays the remove string.
+  const TRASH_SVG =
+    '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    '<path d="M2.2 3.8h11.6"/>' +
+    '<path d="M6.3 3.8V2.6c0-.5.4-.9.9-.9h1.6c.5 0 .9.4.9.9v1.2"/>' +
+    '<path d="M4 3.8l.7 8.9c.1.9.8 1.6 1.7 1.6h3.2c.9 0 1.6-.7 1.7-1.6l.7-8.9"/>' +
+    '<path d="M6.6 6.4v4.8"/>' +
+    '<path d="M9.4 6.4v4.8"/>' +
+    "</svg>";
+
+  function removeButton(onclick) {
+    const icon = h("span", { class: "btn-icon" });
+    icon.innerHTML = TRASH_SVG;
+    return h("button", { class: "danger icon-btn", title: S.remove, "aria-label": S.remove, onclick }, icon);
+  }
+
   // ---------- Accounts ----------
 
   function accountDisplayName(account) {
@@ -84,18 +103,11 @@
       },
       S.test,
     );
-    const removeBtn = h(
-      "button",
-      {
-        class: "danger",
-        onclick: () => {
-          state.config.accounts = state.config.accounts.filter((a) => a.id !== account.id);
-          removedAccountIds.push(account.id);
-          render();
-        },
-      },
-      S.remove,
-    );
+    const removeBtn = removeButton(() => {
+      state.config.accounts = state.config.accounts.filter((a) => a.id !== account.id);
+      removedAccountIds.push(account.id);
+      render();
+    });
     const loginInfo = state.logins[account.id] ? h("span", { class: "hint" }, `@${state.logins[account.id]}`) : null;
     return h(
       "div",
@@ -127,17 +139,10 @@
       h(
         "td",
         null,
-        h(
-          "button",
-          {
-            class: "danger",
-            onclick: () => {
-              group.workflows = group.workflows.filter((x) => x !== w);
-              render();
-            },
-          },
-          S.remove,
-        ),
+        removeButton(() => {
+          group.workflows = group.workflows.filter((x) => x !== w);
+          render();
+        }),
       ),
     );
   }
@@ -151,6 +156,7 @@
     const listBtn = h(
       "button",
       {
+        class: "add-btn",
         onclick: () => {
           const owner = dOwner.value.trim();
           const repo = dRepo.value.trim();
@@ -207,6 +213,7 @@
     const addBtn = h(
       "button",
       {
+        class: "add-btn",
         onclick: () => {
           for (const { wf, cb } of checks) {
             if (cb.checked) {
@@ -216,7 +223,7 @@
           render();
         },
       },
-      S.addSelected,
+      `+ ${S.addSelected}`,
     );
     container.replaceChildren(...checks.map((c) => c.row), addBtn);
   }
@@ -256,17 +263,10 @@
         { class: "row" },
         labeled(S.groupName, textInput(group.name, (v) => (group.name = v))),
         labeled(S.groupAccount, accountSelect),
-        h(
-          "button",
-          {
-            class: "danger",
-            onclick: () => {
-              state.config.groups = state.config.groups.filter((g) => g.id !== group.id);
-              render();
-            },
-          },
-          S.remove,
-        ),
+        removeButton(() => {
+          state.config.groups = state.config.groups.filter((g) => g.id !== group.id);
+          render();
+        }),
       ),
       h("h3", null, S.workflows),
       table,
@@ -310,25 +310,27 @@
       h(
         "button",
         {
+          class: "add-btn",
           onclick: () => {
             config.accounts.push({ id: uid(), name: "", baseUrl: "https://api.github.com" });
             render();
           },
         },
-        S.addAccount,
+        `+ ${S.addAccount}`,
       ),
       h("h2", null, S.groups),
       ...(config.groups.length === 0 ? [h("div", { class: "empty" }, S.noGroups)] : config.groups.map(groupCard)),
       h(
         "button",
         {
+          class: "add-btn",
           onclick: () => {
             if (config.accounts.length === 0) return;
             config.groups.push({ id: uid(), name: "", accountId: config.accounts[0].id, workflows: [] });
             render();
           },
         },
-        S.addGroup,
+        `+ ${S.addGroup}`,
       ),
       h("h2", null, S.polling),
       h(

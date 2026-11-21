@@ -1,4 +1,4 @@
-import type { LivenessState } from "./types";
+import type { AccountHealth, LivenessState } from "./types";
 
 /**
  * Classify one liveness probe result. The three states stay distinct:
@@ -85,6 +85,40 @@ export function livenessTransition(prev: LivenessState | undefined, next: Livene
     recovered: next === "reachable" && prev === "unreachable",
     authChanged: (next === "authError") !== (prev === "authError") && prev !== undefined,
   };
+}
+
+/**
+ * The recoveredAt timestamp to record after a probe. A recovery earns the
+ * 復旧 marker only when it was witnessed in this session: a recovery applied
+ * during the silent startup baseline (witnessed = false) clears the marker
+ * instead of setting it — from the user's point of view nothing happened,
+ * so there is nothing to mark. Without a recovery edge, the previous
+ * marker carries over while it is still inside its display window.
+ */
+export function nextRecoveredAt(
+  transition: LivenessTransition,
+  prevRecoveredAt: number | undefined,
+  now: number,
+  witnessed: boolean,
+): number | undefined {
+  if (!transition.recovered) {
+    return prevRecoveredAt;
+  }
+  return witnessed ? now : undefined;
+}
+
+/**
+ * Health restored from persistence at startup, with the recovery marker
+ * removed. The marker is session-local — it stands for an outage and a
+ * recovery the user could have witnessed — so a marker stored by a previous
+ * session must not reappear after a restart. Everything else (state,
+ * timestamps, login) carries over unchanged.
+ */
+export function withoutRecoveryMarker(health: AccountHealth): AccountHealth {
+  if (health.recoveredAt === undefined) {
+    return health;
+  }
+  return { ...health, recoveredAt: undefined };
 }
 
 /** The 復旧 marker stays visible for this long after a recovery. */
