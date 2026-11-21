@@ -1,0 +1,12 @@
+.vscode/**
+src/**
+out/**
+test-fixtures/**
+scripts/**
+.github/**
+esbuild.js
+tsconfig.json
+**/*.ts
+**/*.map
+*.vsix
+AGENTS.md

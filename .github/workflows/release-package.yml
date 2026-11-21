@@ -1,0 +1,19 @@
+name: 'リリースパッケージ公開 (Release Package)'
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # 公開途中のキャンセルによる部分公開を防ぐため、リリースはキャンセルせず直列化する
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 'VSCode拡張機能リリース実行 (Execute Base Release for VSCode)'
+    # 手動公開は main ブランチからのみ実行する
+    if: github.ref == 'refs/heads/main'
+    uses: masanori-satake/common-workflows/.github/workflows/base-release-vscode.yml@v1
+    secrets: inherit
+    permissions:
+      contents: write

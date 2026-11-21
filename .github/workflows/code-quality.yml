@@ -1,0 +1,25 @@
+name: 'コード品質検証 (Code Quality)'
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: 'VSCode拡張機能CI実行 (Execute Base CI for VSCode)'
+    uses: masanori-satake/common-workflows/.github/workflows/base-ci-vscode.yml@v1
+    # ActionsBoard-Duo 固有事項:
+    #   - Lint (ESLint) は未設定のため run_lint: false。
+    #   - テストは node --test（VS Code 不要、純粋モジュールの単体テスト）。
+    with:
+      run_lint: false

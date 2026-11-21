@@ -1,0 +1,27 @@
+# Changelog
+
+## [0.1.0] - 2026-11-21
+
+### Added
+
+- **First release (GitHub Actions only).** A tree-only CI board in the Activity Bar: account (server) → group → workflow → branch runs → jobs inside a run, including matrix breakdowns.
+- **Status bar summary, always present.** Glyphs and counts for success / failure / running, with unreachable servers as their own count (normally 0) — an outage is never counted as a build failure. Clicking the item opens the board.
+- **Scope filters and display mode.** Title-bar filters for All / Mine / Starred, plus a starred-only display mode that hides everything else, including groups and servers with nothing starred.
+- **Expansion selectors.** Failures only (the initial state), Running too, Expand all, Collapse all; manual adjustments are shown as such.
+- **Symbol marks.** ★ for starred workflows (toggle on the row), a person mark when the newest runs include one started by your own account (matched automatically from the run actor). Tooltips and the settings form carry the legend.
+- **Server liveness monitoring.** Per-account probes on their own cycle, separate from build polling. Reachable / auth error / unreachable are kept distinct; unreachable servers switch their rows to an "unreachable" presentation with the last-confirmed time, and a recovery marker appears on return. Outage and recovery notifications are on by default and can each be switched off.
+- **Notifications** for build failures, with scope (all / mine / starred).
+- **Accounts and groups.** Multiple GitHub / GitHub Enterprise Server accounts (PAT + API base URL) with connection tests and automatic login fetch; groups bundle workflows across repositories; workflows are added by repository discovery, by pasting a GitHub Actions URL, or manually; aliases per workflow.
+- **One-screen settings form** (Apply model) for accounts, groups, workflows, polling intervals and notifications. Tokens live only in SecretStorage; settings export/import (JSON) never includes them.
+
+### 日本語
+
+- **初回リリース（GitHub Actions のみ）。** アクティビティバーのツリー専用 CI ボード: アカウント（サーバ）→ グループ → ワークフロー → ブランチ別ラン → ランの中のジョブ（マトリクスの内訳を含む）。
+- **常駐のステータスバー要約。** 成功/失敗/実行中のグリフと件数に、不通のサーバを独立の件数（通常は0）として並べます。不通をビルド失敗に数えることはありません。クリックで盤面が開きます。
+- **スコープのフィルターと表示モード。** タイトルバーの「すべて / 自分の / 興味がある」に加え、星を付けたものだけを表示するモード（対象を含まないグループやサーバは丸ごと隠れます）。
+- **展開セレクター。** 「エラーのみ展開」（初期表示）、「実行中も展開」、「すべて展開」、「すべて畳む」。手動で調整するとその旨が表示されます。
+- **シンボルの印。** ★ は興味がある（行で付け外し）、人の印は最新の実行に自分のアカウントが起こしたものが含まれること（実行者との一致で自動判定）。ツールチップと設定フォームに凡例があります。
+- **サーバの死活監視。** ビルド取得とは別周期で、アカウントごとに疎通を確認します。到達可/認証エラー/到達不可を区別し、到達できないサーバの行は「不通」の見た目（最終確認時刻つき）に切り替わり、復旧時には復旧の印が出ます。不通/復旧の通知は既定でオン、個別にオフできます。
+- **ビルド失敗の通知。** 範囲は「すべて / 自分だけ / 星つきだけ」から選べます。
+- **アカウントとグループ。** GitHub / GitHub Enterprise Server のアカウントを複数登録（PAT + API ベースURL、接続テストとログイン名の自動取得つき）。グループはリポジトリを跨いでワークフローを束ねます。追加方法はリポジトリから一括、URL 貼り付け、手動入力の3通り。ワークフローごとに別名を付けられます。
+- **一画面の設定フォーム**（適用モデル）で、アカウント、グループ、ワークフロー、ポーリング間隔、通知を扱います。トークンは SecretStorage のみ。設定のエクスポート/インポート（JSON）にトークンは含まれません。
