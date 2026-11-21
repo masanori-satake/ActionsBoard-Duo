@@ -292,18 +292,15 @@ export function activate(context: vscode.ExtensionContext): void {
     refreshUi();
   });
 
-  // Same pairing as the scope buttons: each expansion preset has a normal
-  // command and an "Active" twin with a filled icon, swapped by the
-  // expansion context key. In "manual" no twin matches, so no expansion
-  // button shows active.
+  // Unlike the scope buttons, the expansion presets have no "Active"
+  // twins: their icons are state-independent (a filled ● hid what each
+  // button does), so each preset is a single command with a fixed icon.
+  // The expansion context key is still maintained by refreshUi, but no
+  // menu entry switches on it anymore.
   register("actionsBoardDuo.expandFailures", () => applyExpansion("failures"));
-  register("actionsBoardDuo.expandFailuresActive", () => applyExpansion("failures"));
   register("actionsBoardDuo.expandRunning", () => applyExpansion("running"));
-  register("actionsBoardDuo.expandRunningActive", () => applyExpansion("running"));
   register("actionsBoardDuo.expandAll", () => applyExpansion("all"));
-  register("actionsBoardDuo.expandAllActive", () => applyExpansion("all"));
   register("actionsBoardDuo.collapseAll", () => applyExpansion("collapsed"));
-  register("actionsBoardDuo.collapseAllActive", () => applyExpansion("collapsed"));
 
   const setStarred = async (node: BoardNode | undefined, starred: boolean): Promise<void> => {
     if (!node?.workflow || !node.group) {

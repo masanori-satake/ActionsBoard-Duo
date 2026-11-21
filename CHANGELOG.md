@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.3] - 2026-11-21
+
+### Changed
+
+- **The expansion buttons no longer turn into a plain ● when active.** Each of the four expansion buttons swapped to a filled-circle icon while its mode was active, which hid what the button does and which mode it belongs to. The buttons now keep one fixed, state-independent icon each: failures stays an error mark, running stays a sync mark, Expand All is a plus in a square, and Collapse All is a minus in a square. The trade-off is accepted: the current expansion mode is no longer marked on the buttons. (The scope buttons keep their filled active icons, which keep the same symbol.)
+
+### 日本語
+
+- **展開ボタンが、選択中でも ● に変わらなくなりました。** 4つの展開ボタンは、自分のモードが選ばれている間は塗りつぶしの丸に差し替わっていましたが、そのボタンの働きも、どのモードのボタンかも分からなくなる表示でした。今はボタンごとに固定のアイコンです。エラーはエラーの印、実行中は同期の印、すべて展開は四角に「+」、すべて折りたたむは四角に「−」で、状態によって変わりません。代わりに、現在の展開モードはボタン上では示されなくなります（スコープのボタンは、同じシンボルのまま塗りつぶしになる従来の示し方を続けます）。
+
 ## [0.2.2] - 2026-11-21
 
 ### Changed
