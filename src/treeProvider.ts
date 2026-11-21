@@ -28,6 +28,8 @@ export interface BoardNode {
   run?: RunInfo;
   job?: JobInfo;
   infoText?: string;
+  /** Tone for "info" placeholder rows: neutral = no information (gray), warning = a real problem (yellow). */
+  infoTone?: "neutral" | "warning";
   jobsLoaded?: boolean;
 }
 
@@ -113,7 +115,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
   private buildRoots(): BoardNode[] {
     const { accounts, groups } = this.board.config;
     if (accounts.length === 0) {
-      return [{ kind: "info", id: "info:no-accounts", infoText: t("tree.noAccounts") }];
+      return [{ kind: "info", id: "info:no-accounts", infoText: t("tree.noAccounts"), infoTone: "neutral" }];
     }
     const logins = new Map<string, string | undefined>();
     for (const a of accounts) {
@@ -180,6 +182,10 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       case "info": {
         const item = new vscode.TreeItem(node.infoText ?? "");
         item.contextValue = "info";
+        item.iconPath =
+          node.infoTone === "warning"
+            ? new vscode.ThemeIcon("warning", new vscode.ThemeColor("charts.yellow"))
+            : new vscode.ThemeIcon("info", new vscode.ThemeColor("charts.gray"));
         return item;
       }
       case "account":
@@ -366,12 +372,20 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         parent: node,
       }));
       if (node.children.length === 0) {
-        node.children = [{ kind: "info", id: `info:no-jobs:${node.id}`, infoText: t("tree.noJobs"), parent: node }];
+        node.children = [
+          { kind: "info", id: `info:no-jobs:${node.id}`, infoText: t("tree.noJobs"), infoTone: "neutral", parent: node },
+        ];
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       node.children = [
-        { kind: "info", id: `info:jobs-error:${node.id}`, infoText: `${t("tree.fetchError")}: ${message}`, parent: node },
+        {
+          kind: "info",
+          id: `info:jobs-error:${node.id}`,
+          infoText: `${t("tree.fetchError")}: ${message}`,
+          infoTone: "warning",
+          parent: node,
+        },
       ];
     }
     return node.children;

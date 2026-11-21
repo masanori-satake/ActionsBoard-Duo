@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.9] - 2026-11-21
+
+### Fixed
+
+- **The "No jobs recorded" row no longer reads as part of an error.** The placeholder sat directly under a failed run's red icon with no mark of its own, so it looked like an error detail — hard to reconcile with the workflow above showing success. The row now carries a gray info icon, marking it as "no information here, unrelated to success or failure". A placeholder for an actual jobs fetch failure keeps a yellow warning icon, so a real problem still stands apart.
+
+### 日本語
+
+- **「ジョブはありません」の行が、エラーの一部には見えないようにしました。** 失敗したランの赤いアイコンのすぐ下に、印のないまま表示されていたため、エラーの詳細のように読めてしまい、上の階層のワークフローが成功を示していることと理解がつながりませんでした。この行にグレーの情報アイコンを付け、「ここには情報がないだけであり、成否とは無関係」だと分かるようにしました。ジョブの取得そのものに失敗した場合の行は、黄色の警告アイコンのままにして、本当の問題とは区別がつくようにしています。
+
 ## [0.1.8] - 2026-11-21
 
 ### Fixed
