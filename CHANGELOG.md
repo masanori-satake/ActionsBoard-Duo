@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.11] - 2026-11-21
+
+### Changed
+
+- **Tree rows now show the workflow's own name, not just its file name.** The list-runs response carries the workflow name on every run, so polling captures it and the tree labels each workflow with that name as soon as it is known — no configuration change needed. Until the first successful fetch (or while a workflow has no runs), the file name is shown as before, and the tooltip still lists the file name so the file stays identifiable.
+- **The per-workflow alias has been removed.** With the workflow's real name now displayed, a separate hand-written alias is unnecessary. The settings form's workflows table loses the alias column (repository and workflow file as text, star checkbox, remove button only), and the `alias` property is gone from the configuration schema; any `alias` values left in existing settings are simply ignored.
+- **The discovery checklist in the settings form is labelled by workflow name too.** After "List workflows", each checkbox shows the workflow's name (with the file name alongside), falling back to the file name alone for workflows that declare no name. What gets saved is still the workflow file, exactly as before — this is label display only.
+
+### 日本語
+
+- **ツリーの表示名が、ファイル名ではなくワークフロー名になりました。** 実行一覧の応答には各実行にワークフロー名が含まれているため、ポーリングのついでにそれを取り込み、判明した時点でツリーの表示名に使います。設定の変更は要りません。初回の取得が成功するまで（および実行が1件もない間）は従来どおりファイル名を表示し、ツールチップにはファイル名も残すので、どのファイルかは引き続き分かります。
+- **ワークフローごとの別名（alias）を廃止しました。** ワークフロー名そのものが表示されるようになったため、手書きの別名は不要と判断しました。設定画面の監視対象ワークフロー表から別名の列がなくなり（リポジトリとワークフローファイルのテキスト表示、星のチェック、削除ボタンだけになります）、設定スキーマからも `alias` プロパティを除きました。既存の設定に残っている `alias` の値は、そのまま無視されます。
+- **設定画面の「リポジトリから追加」のチェックリストも、ワークフロー名で表示するようにしました。** 「ワークフロー一覧を取得」のあとの各チェックには、ワークフロー名（併せてファイル名）を示し、名前を持たないワークフローではファイル名だけを示します。保存されるのは従来どおりワークフローファイルで、これは表示だけの変更です。
+
 ## [0.1.10] - 2026-11-21
 
 ### Changed

@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v0.1.10-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v0.1.11-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -20,7 +20,7 @@ The board is a quiet tree in the Activity Bar: **account (server) → group → 
 
 It is a "-Duo": where a "-Solo" is complete on its own and fully local, a "-Duo" works by pairing with something else — here, the CI servers you configure. The pairing stays minimal and read-only: polling of the APIs you configured, nothing more. Tokens live only in SecretStorage, never in settings files.
 
-Current version: **v0.1.10**
+Current version: **v0.1.11**
 
 ---
 
@@ -35,7 +35,7 @@ Current version: **v0.1.10**
 - **Server liveness** — each account is probed on its own cycle, separate from build polling. Reachable / auth error / unreachable are kept distinct; an unreachable server's rows switch to an "unreachable" presentation with the last-confirmed time, and a recovery marker appears when it comes back.
 - **Notifications** — build failures, server outages and recoveries (outage and recovery can each be switched off; failure notifications can be scoped to all / mine / starred).
 - **Accounts** — multiple GitHub / GitHub Enterprise Server accounts (PAT + API base URL), each with a connection test; your login is fetched automatically for the "Mine" matching.
-- **Groups** — bundle workflows across repositories by purpose. Add workflows by discovering them from a repository: list the repository's workflows and check the ones to watch. Aliases and stars per workflow.
+- **Groups** — bundle workflows across repositories by purpose. Add workflows by discovering them from a repository: list the repository's workflows and check the ones to watch. Workflows are labelled with their own GitHub workflow name once it is known (the file name until the first fetch). Stars per workflow.
 - **One-screen settings form** — accounts, groups, workflows, polling and notifications on a single page with an Apply (Save) button. No serial wizard dialogs.
 - **View-only** — no re-run or cancel operations. It is a tool for watching.
 
@@ -96,7 +96,7 @@ MIT — see [LICENSE](LICENSE).
 
 これは「-Duo」です。「-Solo」が単体で完結し完全ローカルであるのに対し、「-Duo」は何かと組になって働きます。ここでは、あなたが設定した CI サーバです。連携は最小限かつ読み取り専用に保ちます。設定した API へのポーリングだけで、それ以外は何もしません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v0.1.10**
+現在のバージョン: **v0.1.11**
 
 ---
 
@@ -111,7 +111,7 @@ MIT — see [LICENSE](LICENSE).
 - **サーバの死活監視** — アカウントごとに、ビルド取得とは別周期で疎通を確認します。到達可/認証エラー/到達不可を区別し、到達できないサーバの行は「不通」の見た目（最終確認時刻つき）に切り替わり、復旧したら復旧の印が出ます。
 - **通知** — ビルド失敗、サーバの不通、復旧（不通と復旧は個別にオフ可。失敗通知は「すべて / 自分だけ / 星つきだけ」に範囲を絞れます）。
 - **アカウント** — GitHub / GitHub Enterprise Server のアカウントを複数登録（PAT + API ベースURL）。接続テストつき。自分のログイン名は自動取得し、「自分の」の判定に使います。
-- **グループ** — リポジトリを跨いで、ワークフローを目的別に束ねます。追加はリポジトリからの一括追加のみ: リポジトリのワークフロー一覧を取得し、監視するものにチェックを入れて追加します。ワークフローごとに別名と星を付けられます。
+- **グループ** — リポジトリを跨いで、ワークフローを目的別に束ねます。追加はリポジトリからの一括追加のみ: リポジトリのワークフロー一覧を取得し、監視するものにチェックを入れて追加します。ワークフローの表示名は、取得でき次第 GitHub 上のワークフロー名になります（初回取得まではファイル名）。ワークフローごとに星を付けられます。
 - **一画面の設定フォーム** — アカウント、グループ、ワークフロー、ポーリング、通知を1ページにまとめ、保存（適用）ボタンで反映します。逐次ウィザードは使いません。
 - **見るだけ** — 再実行やキャンセルの操作は持ちません。眺めるための道具です。
 

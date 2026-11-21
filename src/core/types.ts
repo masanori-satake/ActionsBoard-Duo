@@ -17,7 +17,6 @@ export interface WatchedWorkflow {
   repo: string;
   /** Workflow file name (e.g. "ci.yml") or numeric workflow id as a string. */
   workflow: string;
-  alias?: string;
   starred?: boolean;
 }
 
@@ -76,6 +75,13 @@ export interface WorkflowState {
   branchRuns: RunInfo[];
   /** The newest run overall, if any. */
   latest?: RunInfo;
+  /**
+   * The workflow's own name on GitHub, captured from the list-runs
+   * payload while polling. Undefined until the first successful fetch
+   * that returned at least one run; preserved across later polls that
+   * return no runs.
+   */
+  workflowName?: string;
   /** Jobs fetched lazily per run id. */
   jobsByRun: Record<number, JobInfo[]>;
   /** Last fetch error message, if the last fetch failed at workflow level. */
@@ -105,8 +111,16 @@ export function workflowKey(accountId: string, w: WatchedWorkflow): string {
   return `${accountId}:${w.owner}/${w.repo}/${w.workflow}`;
 }
 
-export function workflowDisplayName(w: WatchedWorkflow): string {
-  return w.alias && w.alias.trim() !== "" ? w.alias : w.workflow;
+/**
+ * Label for a watched workflow: the workflow's own name once it is
+ * known (captured while polling), otherwise the workflow file name —
+ * the only label available before the first successful fetch.
+ */
+export function workflowDisplayName(w: WatchedWorkflow, workflowName?: string): string {
+  if (workflowName && workflowName.trim() !== "") {
+    return workflowName;
+  }
+  return w.workflow;
 }
 
 /**

@@ -277,7 +277,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     const marks = marksFor(w.starred === true, mine);
     const collapsible = !unreachable && (state?.branchRuns.length ?? 0) > 0;
     const item = new vscode.TreeItem(
-      workflowDisplayName(w),
+      workflowDisplayName(w, state?.workflowName),
       collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
     // The context value carries the star state so the inline action can show
@@ -308,7 +308,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     }
     item.description = parts.join(" · ");
     const tooltipLines = [
-      `${workflowDisplayName(w)} — ${w.owner}/${w.repo}`,
+      `${workflowDisplayName(w, state?.workflowName)} — ${w.owner}/${w.repo}`,
       `${w.workflow}`,
     ];
     if (state?.latest) {

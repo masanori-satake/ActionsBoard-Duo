@@ -114,6 +114,26 @@ export function parseRuns(json: unknown): RunInfo[] {
     }));
 }
 
+/**
+ * The workflow's own name (`name:` in the workflow file, as reported by
+ * GitHub), taken from the list-runs payload. Every run in the response
+ * belongs to the same workflow, so the first (most recent) run item
+ * carries it. Returns undefined when the payload has no runs or the
+ * name is missing/blank, so callers can fall back gracefully.
+ */
+export function parseWorkflowName(json: unknown): string | undefined {
+  const raw = (json as { workflow_runs?: RawRun[] })?.workflow_runs;
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  for (const r of raw) {
+    if (typeof r?.name === "string" && r.name.trim() !== "") {
+      return r.name;
+    }
+  }
+  return undefined;
+}
+
 interface RawStep {
   name?: string;
   status?: string;

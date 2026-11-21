@@ -123,7 +123,6 @@
       null,
       h("td", null, `${w.owner}/${w.repo}`),
       h("td", null, w.workflow),
-      h("td", null, textInput(w.alias || "", (v) => (w.alias = v))),
       h("td", { class: "star" }, star),
       h(
         "td",
@@ -195,7 +194,15 @@
     const items = discovered[group.id] || [];
     const checks = items.map((wf) => {
       const cb = h("input", { type: "checkbox", checked: true });
-      return { wf, cb, row: h("label", { class: "inline" }, cb, `${wf.name} (${wf.file})`) };
+      // Label display only (what is saved stays the file): the workflow
+      // name when the workflow has one of its own, otherwise the file
+      // name. The payload's name falls back to the file name (or path)
+      // when the workflow file declares no name, so treat those as
+      // "no name" instead of printing the file twice.
+      const hasOwnName =
+        typeof wf.name === "string" && wf.name !== "" && wf.name !== wf.file && !wf.name.endsWith(`/${wf.file}`);
+      const label = hasOwnName ? `${wf.name} (${wf.file})` : wf.file;
+      return { wf, cb, row: h("label", { class: "inline" }, cb, label) };
     });
     const addBtn = h(
       "button",
@@ -235,7 +242,6 @@
                 null,
                 h("th", null, S.repository),
                 h("th", null, S.workflowFile),
-                h("th", null, S.alias),
                 h("th", null, S.starred),
                 h("th", null, ""),
               ),

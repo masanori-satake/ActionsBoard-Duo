@@ -5,6 +5,7 @@ import {
   normaliseBaseUrl,
   parseJobs,
   parseRuns,
+  parseWorkflowName,
   parseWorkflows,
   webBaseFromApi,
 } from "../core/github";
@@ -12,7 +13,7 @@ import { classifyProbe, livenessTransition, showsRecoveryMarker } from "../core/
 import { aggregateStatusBar, isFreshFailure, selectBranchRuns, workflowVisible } from "../core/model";
 import { normaliseStatus } from "../core/status";
 import type { AccountHealth, GroupConfig, RunInfo, WatchedWorkflow, WorkflowState } from "../core/types";
-import { groupDisplayName, workflowKey } from "../core/types";
+import { groupDisplayName, workflowDisplayName, workflowKey } from "../core/types";
 
 // ---------- status normalisation ----------
 
@@ -68,6 +69,19 @@ test("parseRuns maps fields and prefers triggering_actor", () => {
   assert.equal(runs[0].status, "success");
   assert.equal(runs[0].actorLogin, "bob");
   assert.equal(runs[0].runNumber, 42);
+});
+
+test("parseWorkflowName captures the workflow name from the runs payload", () => {
+  assert.equal(parseWorkflowName(runJson()), "CI");
+  assert.equal(parseWorkflowName(runJson({ name: "AI Coder Trigger" })), "AI Coder Trigger");
+});
+
+test("parseWorkflowName is undefined when there is nothing to take it from", () => {
+  assert.equal(parseWorkflowName({ workflow_runs: [] }), undefined);
+  assert.equal(parseWorkflowName({}), undefined);
+  assert.equal(parseWorkflowName(null), undefined);
+  assert.equal(parseWorkflowName(runJson({ name: "" })), undefined);
+  assert.equal(parseWorkflowName(runJson({ name: "   " })), undefined);
 });
 
 test("parseJobs finds the failed step", () => {
@@ -257,4 +271,19 @@ test("groupDisplayName: empty or whitespace-only name falls back to the placehol
   // The stored name is never rewritten by the display helper.
   assert.equal(empty.name, "");
   assert.equal(blank.name, "   ");
+});
+
+// ---------- workflow display name ----------
+
+test("workflowDisplayName: the workflow name beats the file name", () => {
+  const w: WatchedWorkflow = { owner: "o", repo: "r", workflow: "ai-coder-trigger.yml" };
+  assert.equal(workflowDisplayName(w, "AI Coder Trigger"), "AI Coder Trigger");
+});
+
+test("workflowDisplayName: falls back to the file name before the first fetch", () => {
+  const w: WatchedWorkflow = { owner: "o", repo: "r", workflow: "ai-coder-trigger.yml" };
+  assert.equal(workflowDisplayName(w, undefined), "ai-coder-trigger.yml");
+  assert.equal(workflowDisplayName(w), "ai-coder-trigger.yml");
+  assert.equal(workflowDisplayName(w, ""), "ai-coder-trigger.yml");
+  assert.equal(workflowDisplayName(w, "   "), "ai-coder-trigger.yml");
 });

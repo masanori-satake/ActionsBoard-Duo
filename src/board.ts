@@ -7,6 +7,7 @@ import {
   parseJobs,
   parseRuns,
   parseWorkflows,
+  parseWorkflowName,
   userUrl,
   type WorkflowSummary,
 } from "./core/github";
@@ -20,7 +21,7 @@ import type {
   WatchedWorkflow,
   WorkflowState,
 } from "./core/types";
-import { workflowKey } from "./core/types";
+import { workflowDisplayName, workflowKey } from "./core/types";
 import { t } from "./i18n";
 import { fetchJson } from "./net";
 import { readConfig, readHealth, readSettings, TokenStore, writeHealth } from "./store";
@@ -246,6 +247,9 @@ export class Board implements vscode.Disposable {
             runs,
             branchRuns: selectBranchRuns(runs),
             latest: runs[0],
+            // A poll that returns no runs must not erase the name an
+            // earlier poll captured.
+            workflowName: parseWorkflowName(res.json) ?? prev?.workflowName,
             jobsByRun: prev?.jobsByRun ?? {},
             fetchedAt: Date.now(),
           };
@@ -254,7 +258,7 @@ export class Board implements vscode.Disposable {
             const latest = next.latest!;
             const open = t("notify.openRun");
             void vscode.window
-              .showWarningMessage(t("notify.failure", w.alias || w.workflow, `${w.owner}/${w.repo}`), open)
+              .showWarningMessage(t("notify.failure", workflowDisplayName(w, next.workflowName), `${w.owner}/${w.repo}`), open)
               .then((choice) => {
                 if (choice === open && latest.htmlUrl) {
                   void vscode.env.openExternal(vscode.Uri.parse(latest.htmlUrl));
@@ -268,6 +272,7 @@ export class Board implements vscode.Disposable {
             runs: prev?.runs ?? [],
             branchRuns: prev?.branchRuns ?? [],
             latest: prev?.latest,
+            workflowName: prev?.workflowName,
             jobsByRun: prev?.jobsByRun ?? {},
             error: message,
             fetchedAt: prev?.fetchedAt,
