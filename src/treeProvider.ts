@@ -274,7 +274,9 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       workflowDisplayName(w),
       collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
     );
-    item.contextValue = "workflow";
+    // The context value carries the star state so the inline action can show
+    // an outline star (add) or a filled star (remove) for this row.
+    item.contextValue = w.starred === true ? "workflowStarred" : "workflow";
     const parts: string[] = [];
     if (marks) {
       parts.push(marks);

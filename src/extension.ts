@@ -179,7 +179,7 @@ export function activate(context: vscode.ExtensionContext): void {
   register("actionsBoardDuo.expandAll", () => applyExpansion("all"));
   register("actionsBoardDuo.collapseAll", () => applyExpansion("collapsed"));
 
-  register("actionsBoardDuo.toggleStar", async (node?: BoardNode) => {
+  const setStarred = async (node: BoardNode | undefined, starred: boolean): Promise<void> => {
     if (!node?.workflow || !node.group) {
       return;
     }
@@ -189,11 +189,14 @@ export function activate(context: vscode.ExtensionContext): void {
       (w) =>
         w.owner === node.workflow!.owner && w.repo === node.workflow!.repo && w.workflow === node.workflow!.workflow,
     );
-    if (target) {
-      target.starred = target.starred !== true;
+    if (target && (target.starred === true) !== starred) {
+      target.starred = starred;
       await writeConfig(config);
     }
-  });
+  };
+
+  register("actionsBoardDuo.addStar", async (node?: BoardNode) => setStarred(node, true));
+  register("actionsBoardDuo.removeStar", async (node?: BoardNode) => setStarred(node, false));
 
   register("actionsBoardDuo.openRun", async (url?: string) => {
     if (url) {

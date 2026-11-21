@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.7] - 2026-11-21
+
+### Changed
+
+- **The star button on a workflow row now shows the row's state.** The inline button used to render the same outline star whether the workflow was starred or not, so there was no way to tell the state from the button — and clicking a row that had been starred in the settings form silently removed the star. Unstarred rows now show an outline star that adds the star, and starred rows show a filled star that removes it; the two actions set the state explicitly instead of toggling it blind.
+
+### 日本語
+
+- **ワークフロー行の星ボタンが、その行の状態を表すようになりました。** これまでは星の有無にかかわらず輪郭だけの星が表示され、ボタンからは状態が分かりませんでした。設定フォームで星を付けた行を押すと、気づかないうちに星が外れてしまうこともありました。星がない行では輪郭の星（押すと付ける）、星がある行では塗りつぶしの星（押すと外す）にし、付け外しは状態を見て明示的に設定する形にしました。
+
 ## [0.1.6] - 2026-11-21
 
 ### Changed
