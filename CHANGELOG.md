@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.0] - 2026-11-21
+
+### Added
+
+- **Bamboo (Data Center) support — the second CI service of stage 1.** An account now has a service kind (GitHub / Bamboo; accounts saved before this release keep working as GitHub). For a Bamboo account, the base URL is the server's base URL and the watched unit is a plan: in the settings form, a Bamboo group's editor lists the server's plans grouped by project, and you tick the ones to watch. Polling reads each plan's latest result plus up to 10 recent results; the tree shows plan → recent builds (build number, state icon, branch when the payload carries one, relative time), and expanding a build loads its stages/jobs with one lazy request — polling never fans out per build. Build rows open the build's page in the Bamboo web UI. Liveness uses the same machinery as GitHub (one light request per account per cycle, confirmation probes, silent baseline, recovery markers), and failure notifications apply under the same scope rules. One deliberate difference: Bamboo result payloads carry no reliable "who started this build", so plans never get the person mark (stars work as usual).
+- **GitHub Pages two-stage tracking.** Mirroring the Chrome edition: when a watched workflow's newest run succeeds, the board also checks the repository's Pages deployments in the same poll cycle and shows the state as a quiet suffix on the workflow row — deploying, deployed, or deployment failed — with the site URL in the tooltip. The check runs only for repositories where a fresh success was just seen, and a failed check keeps the previously shown state. One refinement over the Chrome edition, which only distinguished "deliverable" from everything else: a failed deployment is shown as failed instead of reading as "still deploying" forever.
+- **Drag to reorder.** Drag a workflow or plan to reorder it within its group, or drop it onto another group of the same account to move it there (dropping on a row inserts before that row; cross-account drops are rejected, since an entry only means something under its own account). Drag a group to reorder groups. The new order is written to the settings arrays, so the settings form shows the same order.
+
+### Changed
+
+- **The view title buttons are reordered, and the expansion buttons sit together.** Rarely used buttons now go to the left and frequent ones to the right: settings (gear) → refresh → scope (All / Mine / Starred) → starred-only toggle → the four expansion buttons, adjacent at the right end. Before this, a second "collapse all" button — the one VS Code itself adds — appeared apart from the extension's expansion group; the built-in button is now off, so the extension's own four buttons form one unbroken group in every state.
+- **The README was rewritten for readability.** The whole text, in both English and Japanese: plainer wording, shorter sentences, concrete setup steps for both services, and the 0.2.0 features (Bamboo, Pages tracking, drag reorder) folded in.
+
+### 日本語
+
+- **Bamboo（Data Center）に対応しました — 第1段の2つ目の CI サービスです。** アカウントにサービスの種類（GitHub / Bamboo）が付きました（これまでの設定は GitHub としてそのまま動きます）。Bamboo アカウントでは、ベース URL はサーバのベース URL で、監視の単位はプランです。設定フォームでは、Bamboo のグループの編集でサーバのプラン一覧をプロジェクト別に取得し、見たいものにチェックを入れて追加します。取得は各プランの最新結果＋直近10件までで、ツリーはプラン → 直近のビルド（ビルド番号、状態アイコン、ペイロードに含まれればブランチ名、相対時刻）となり、ビルドを展開したときにだけ、そのステージ／ジョブを1リクエストで読みます（取得のたびにビルドごとのリクエストはしません）。ビルドの行からは Bamboo の Web 画面が開きます。死活確認は GitHub と同じ仕組み（1周期につきアカウントごとに軽いリクエスト1回、確認プローブ、無言のベースライン、復旧の印）で、失敗通知も同じ範囲ルールで効きます。意図的な違いが1つあります。Bamboo の結果ペイロードには「誰が起こしたビルドか」の確かな情報がないため、プランに人の印は付きません（星は通常どおり使えます）。
+- **GitHub Pages の2段階追跡を追加しました。** Chrome 版と同じ考え方です。監視ワークフローの最新の実行が成功すると、同じ取得周期の中で、そのリポジトリの Pages デプロイも確認し、状態をワークフローの行に控えめな接尾辞として出します（デプロイ中／デプロイ完了／デプロイ失敗）。サイトの URL はツールチップに出ます。確認は、成功を新しく見たリポジトリについてだけ行い、確認に失敗したときは前に出ていた状態を保ちます。Chrome 版との違いが1つあります。Chrome 版は「公開可能になったか、まだか」の2分法でしたが、こちらではデプロイ失敗を「失敗」と分かる形で出します（いつまでも「デプロイ中」に見えるのを避けるため）。
+- **ドラッグで並べ替えられるようになりました。** ワークフローやプランをドラッグして、グループ内での順序を変えたり、同じアカウントの別グループへ移したりできます（行の上に落とすと、その行の前に挿入されます。アカウントを跨ぐ移動は、そのアカウントの下でなければ意味を持たないため受け付けません）。グループ自体の並べ替えもできます。新しい順序は設定の配列に保存されるので、設定フォームでも同じ順序で出ます。
+- **ビュータイトルのボタンの並びを変え、展開ボタンをひとまとまりにしました。** あまり使わないボタンを左へ、よく使うボタンを右へ: 設定（歯車）→ 更新 → スコープ（すべて／自分の／興味がある）→ 星だけ表示の切り替え → 展開ボタン4つ（右端に隣り合って）。これまで、VS Code 自身が付ける「すべてを折りたたむ」ボタンが、拡張の展開グループから離れた位置に出ていました。その内蔵ボタンは止めたので、どの状態でも拡張自身の4ボタンが切れ目なく並びます。
+- **README を読みやすく全面改稿しました。** 英語・日本語の両方です。言い回しを平たくし、文を短くし、両サービスの設定手順を具体的に書き、0.2.0 の機能（Bamboo、Pages 追跡、ドラッグでの並べ替え）を織り込みました。
+
 ## [0.1.16] - 2026-11-21
 
 ### Changed

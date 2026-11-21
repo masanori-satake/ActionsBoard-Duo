@@ -1,10 +1,26 @@
 import * as vscode from "vscode";
 import {
+  bambooCurrentUserUrl,
+  bambooPlansUrl,
+  bambooProjectsUrl,
+  bambooResultDetailUrl,
+  bambooResultsUrl,
+  parseBambooCurrentUser,
+  parseBambooPlanName,
+  parseBambooPlans,
+  parseBambooProjects,
+  parseBambooResults,
+  parseBambooStages,
+  type BambooPlanSummary,
+} from "./core/bamboo";
+import {
   listJobsUrl,
   listRunsUrl,
   listWorkflowsUrl,
   normaliseBaseUrl,
+  pagesDeploymentsUrl,
   parseJobs,
+  parsePagesDeployment,
   parseRuns,
   parseWorkflows,
   parseWorkflowName,
@@ -23,12 +39,24 @@ import { isFreshFailure, selectBranchRuns } from "./core/model";
 import type {
   AccountConfig,
   AccountHealth,
+  AccountKind,
   AppConfig,
   JobInfo,
+  PagesDeploymentState,
+  WatchedItem,
+  WatchedPlan,
   WatchedWorkflow,
   WorkflowState,
 } from "./core/types";
-import { workflowDisplayName, workflowKey } from "./core/types";
+import {
+  accountKind,
+  isPlanEntry,
+  itemKey,
+  pagesKey,
+  planDisplayName,
+  sameItem,
+  workflowDisplayName,
+} from "./core/types";
 import { t } from "./i18n";
 import { fetchJson } from "./net";
 import { readConfig, readHealth, readSettings, TokenStore, writeHealth } from "./store";
@@ -37,6 +65,7 @@ import { readConfig, readHealth, readSettings, TokenStore, writeHealth } from ".
  * The board engine: build polling, liveness probing, state and notifications.
  * Timers: build polling adapts to view visibility (30 s visible / 300 s
  * hidden by default); liveness runs on its own separate cycle.
+ * Two CI kinds share the machinery: GitHub (workflows) and Bamboo (plans).
  */
 export class Board implements vscode.Disposable {
   private readonly _onDidChange = new vscode.EventEmitter<void>();
@@ -45,6 +74,8 @@ export class Board implements vscode.Disposable {
   config: AppConfig = { accounts: [], groups: [] };
   readonly states = new Map<string, WorkflowState>();
   readonly health = new Map<string, AccountHealth>();
+  /** Latest GitHub Pages deployment per repository (accountId:owner/repo). */
+  readonly pagesStates = new Map<string, PagesDeploymentState>();
 
   private buildTimer: NodeJS.Timeout | undefined;
   private livenessTimer: NodeJS.Timeout | undefined;
@@ -144,15 +175,29 @@ export class Board implements vscode.Disposable {
     return this.health.get(accountId)?.login;
   }
 
-  // ---------- GitHub helpers ----------
+  // ---------- API helpers ----------
 
   private async api(account: AccountConfig, url: string): Promise<{ status: number; json: unknown }> {
     const token = await this.tokens.get(account.id);
-    return fetchJson(url, token);
+    return fetchJson(url, token, { bamboo: accountKind(account) === "bamboo" });
   }
 
-  /** Connection test: returns the own login. Throws on failure. */
-  async testAccount(baseUrl: string, token: string | undefined): Promise<string> {
+  /** Connection test: returns the own login / user name. Throws on failure. */
+  async testAccount(baseUrl: string, token: string | undefined, kind: AccountKind = "github"): Promise<string> {
+    if (kind === "bamboo") {
+      const res = await fetchJson(bambooCurrentUserUrl(baseUrl), token, { bamboo: true });
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(`HTTP ${res.status} (auth)`);
+      }
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const name = parseBambooCurrentUser(res.json);
+      if (!name) {
+        throw new Error("no user name in response");
+      }
+      return name;
+    }
     const res = await fetchJson(userUrl(normaliseBaseUrl(baseUrl)), token);
     if (res.status === 401 || res.status === 403) {
       throw new Error(`HTTP ${res.status} (auth)`);
@@ -175,6 +220,36 @@ export class Board implements vscode.Disposable {
     return parseWorkflows(res.json);
   }
 
+  /**
+   * Discovery for Bamboo accounts: the server's plan list, with project
+   * names enriched from the project list when a plan payload does not
+   * carry its project's name. `tokenOverride` covers accounts that are
+   * not saved yet (the settings form passes the typed token).
+   */
+  async discoverPlans(account: AccountConfig, tokenOverride?: string): Promise<BambooPlanSummary[]> {
+    const token = tokenOverride ?? (await this.tokens.get(account.id));
+    const res = await fetchJson(bambooPlansUrl(account.baseUrl), token, { bamboo: true });
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const plans = parseBambooPlans(res.json);
+    try {
+      const projRes = await fetchJson(bambooProjectsUrl(account.baseUrl), token, { bamboo: true });
+      if (projRes.status >= 200 && projRes.status < 300) {
+        const names = new Map(parseBambooProjects(projRes.json).map((p) => [p.key, p.name]));
+        for (const plan of plans) {
+          const projectName = names.get(plan.projectKey);
+          if (projectName && plan.projectName === plan.projectKey) {
+            plan.projectName = projectName;
+          }
+        }
+      }
+    } catch {
+      // Project names only group the checklist; the plans stand on their own.
+    }
+    return plans;
+  }
+
   // ---------- Liveness ----------
 
   async probeAll(): Promise<void> {
@@ -194,10 +269,17 @@ export class Board implements vscode.Disposable {
         let networkFailed = false;
         let login: string | undefined;
         try {
-          const res = await this.api(account, userUrl(account.baseUrl));
+          // One request per account per cycle. GitHub's /user and
+          // Bamboo's /currentUser both double as the login source.
+          const probeUrl =
+            accountKind(account) === "bamboo" ? bambooCurrentUserUrl(account.baseUrl) : userUrl(account.baseUrl);
+          const res = await this.api(account, probeUrl);
           status = res.status;
           if (status >= 200 && status < 300) {
-            login = (res.json as { login?: string })?.login;
+            login =
+              accountKind(account) === "bamboo"
+                ? parseBambooCurrentUser(res.json)
+                : (res.json as { login?: string })?.login;
           }
         } catch {
           networkFailed = true;
@@ -268,8 +350,9 @@ export class Board implements vscode.Disposable {
     }
     this.polling = true;
     try {
-      // Dedupe: the same workflow watched in several groups is fetched once.
-      const jobs = new Map<string, { account: AccountConfig; w: WatchedWorkflow }>();
+      // Dedupe: the same entry watched in several groups is fetched once.
+      // Entries whose shape does not match the account kind are inert.
+      const jobs = new Map<string, { account: AccountConfig; item: WatchedItem }>();
       for (const group of this.config.groups) {
         const account = this.account(group.accountId);
         if (!account) {
@@ -279,54 +362,44 @@ export class Board implements vscode.Disposable {
         if (h && h.state === "unreachable") {
           continue; // Do not hammer a server that is down; liveness owns it.
         }
-        for (const w of group.workflows) {
-          jobs.set(workflowKey(account.id, w), { account, w });
+        for (const item of group.workflows) {
+          if (isPlanEntry(item) !== (accountKind(account) === "bamboo")) {
+            continue;
+          }
+          jobs.set(itemKey(account.id, item), { account, item });
         }
       }
-      const settings = readSettings();
-      for (const [key, { account, w }] of jobs) {
-        const prev = this.states.get(key);
+      // Repositories whose Pages deployment this cycle should check:
+      // the Chrome edition checks a repository's Pages status in a poll
+      // cycle only when a watched workflow in it freshly succeeded.
+      const pagesRepos = new Map<string, { account: AccountConfig; owner: string; repo: string }>();
+      for (const [key, { account, item }] of jobs) {
+        if (isPlanEntry(item)) {
+          await this.pollPlan(account, item, key);
+        } else {
+          const next = await this.pollWorkflow(account, item, key);
+          if (next?.latest?.status === "success") {
+            pagesRepos.set(pagesKey(account.id, item.owner, item.repo), {
+              account,
+              owner: item.owner,
+              repo: item.repo,
+            });
+          }
+        }
+      }
+      for (const [key, { account, owner, repo }] of pagesRepos) {
         try {
-          const res = await this.api(account, listRunsUrl(account.baseUrl, w.owner, w.repo, w.workflow));
+          const res = await this.api(account, pagesDeploymentsUrl(account.baseUrl, owner, repo));
           if (res.status < 200 || res.status >= 300) {
-            throw new Error(`HTTP ${res.status}`);
+            continue; // Keep the previously known state, like the Chrome edition.
           }
-          const runs = parseRuns(res.json);
-          const next: WorkflowState = {
-            key,
-            runs,
-            branchRuns: selectBranchRuns(runs),
-            latest: runs[0],
-            // A poll that returns no runs must not erase the name an
-            // earlier poll captured.
-            workflowName: parseWorkflowName(res.json) ?? prev?.workflowName,
-            jobsByRun: prev?.jobsByRun ?? {},
-            fetchedAt: Date.now(),
-          };
-          this.states.set(key, next);
-          if (prev && isFreshFailure(prev, next) && settings.notifyOnFailure && this.failureInScope(account, w, next)) {
-            const latest = next.latest!;
-            const open = t("notify.openRun");
-            void vscode.window
-              .showWarningMessage(t("notify.failure", workflowDisplayName(w, next.workflowName), `${w.owner}/${w.repo}`), open)
-              .then((choice) => {
-                if (choice === open && latest.htmlUrl) {
-                  void vscode.env.openExternal(vscode.Uri.parse(latest.htmlUrl));
-                }
-              });
+          const parsed = parsePagesDeployment(res.json);
+          if (parsed) {
+            this.pagesStates.set(key, parsed);
           }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          this.states.set(key, {
-            key,
-            runs: prev?.runs ?? [],
-            branchRuns: prev?.branchRuns ?? [],
-            latest: prev?.latest,
-            workflowName: prev?.workflowName,
-            jobsByRun: prev?.jobsByRun ?? {},
-            error: message,
-            fetchedAt: prev?.fetchedAt,
-          });
+        } catch {
+          // A failed Pages check never disturbs the board; the previous
+          // state (if any) stays.
         }
       }
       this._onDidChange.fire();
@@ -335,37 +408,158 @@ export class Board implements vscode.Disposable {
     }
   }
 
-  private failureInScope(account: AccountConfig, w: WatchedWorkflow, state: WorkflowState): boolean {
+  /** Poll one GitHub workflow. Returns the fresh state, or undefined when the fetch failed. */
+  private async pollWorkflow(
+    account: AccountConfig,
+    w: WatchedWorkflow,
+    key: string,
+  ): Promise<WorkflowState | undefined> {
+    const prev = this.states.get(key);
+    try {
+      const res = await this.api(account, listRunsUrl(account.baseUrl, w.owner, w.repo, w.workflow));
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const runs = parseRuns(res.json);
+      const next: WorkflowState = {
+        key,
+        runs,
+        branchRuns: selectBranchRuns(runs),
+        latest: runs[0],
+        // A poll that returns no runs must not erase the name an
+        // earlier poll captured.
+        workflowName: parseWorkflowName(res.json) ?? prev?.workflowName,
+        jobsByRun: prev?.jobsByRun ?? {},
+        fetchedAt: Date.now(),
+      };
+      this.states.set(key, next);
+      this.maybeNotifyFailure(account, w, workflowDisplayName(w, next.workflowName), `${w.owner}/${w.repo}`, prev, next);
+      return next;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.states.set(key, {
+        key,
+        runs: prev?.runs ?? [],
+        branchRuns: prev?.branchRuns ?? [],
+        latest: prev?.latest,
+        workflowName: prev?.workflowName,
+        planName: prev?.planName,
+        jobsByRun: prev?.jobsByRun ?? {},
+        error: message,
+        fetchedAt: prev?.fetchedAt,
+      });
+      return undefined;
+    }
+  }
+
+  /** Poll one Bamboo plan: its latest result plus the recent results (up to 10). */
+  private async pollPlan(account: AccountConfig, plan: WatchedPlan, key: string): Promise<void> {
+    const prev = this.states.get(key);
+    try {
+      const res = await this.api(account, bambooResultsUrl(account.baseUrl, plan.planKey));
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const runs = parseBambooResults(res.json, account.baseUrl);
+      const next: WorkflowState = {
+        key,
+        runs,
+        // The tree's run level for a plan is its recent builds as
+        // returned (newest first) — not newest-per-branch.
+        branchRuns: runs,
+        latest: runs[0],
+        planName: parseBambooPlanName(res.json) ?? prev?.planName,
+        jobsByRun: prev?.jobsByRun ?? {},
+        fetchedAt: Date.now(),
+      };
+      this.states.set(key, next);
+      this.maybeNotifyFailure(account, plan, planDisplayName(plan, next.planName), plan.planKey, prev, next);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.states.set(key, {
+        key,
+        runs: prev?.runs ?? [],
+        branchRuns: prev?.branchRuns ?? [],
+        latest: prev?.latest,
+        workflowName: prev?.workflowName,
+        planName: prev?.planName,
+        jobsByRun: prev?.jobsByRun ?? {},
+        error: message,
+        fetchedAt: prev?.fetchedAt,
+      });
+    }
+  }
+
+  private maybeNotifyFailure(
+    account: AccountConfig,
+    item: WatchedItem,
+    displayName: string,
+    subtitle: string,
+    prev: WorkflowState | undefined,
+    next: WorkflowState,
+  ): void {
+    const settings = readSettings();
+    if (!prev || !isFreshFailure(prev, next) || !settings.notifyOnFailure || !this.failureInScope(account, item, next)) {
+      return;
+    }
+    const latest = next.latest!;
+    const open = t("notify.openRun");
+    void vscode.window
+      .showWarningMessage(t("notify.failure", displayName, subtitle), open)
+      .then((choice) => {
+        if (choice === open && latest.htmlUrl) {
+          void vscode.env.openExternal(vscode.Uri.parse(latest.htmlUrl));
+        }
+      });
+  }
+
+  private failureInScope(account: AccountConfig, item: WatchedItem, state: WorkflowState): boolean {
     const scope = readSettings().notificationScope;
     switch (scope) {
       case "all":
         return true;
       case "starred":
         return this.config.groups.some(
-          (g) =>
-            g.accountId === account.id &&
-            g.workflows.some(
-              (x) => x.owner === w.owner && x.repo === w.repo && x.workflow === w.workflow && x.starred,
-            ),
+          (g) => g.accountId === account.id && g.workflows.some((x) => sameItem(x, item) && x.starred),
         );
       case "mine":
-        return state.latest?.actorLogin !== undefined && state.latest.actorLogin === this.loginOf(account.id);
+        // Bamboo builds carry no actor, so they never match "mine".
+        return (
+          state.latest?.actorLogin !== undefined &&
+          state.latest.actorLogin !== "" &&
+          state.latest.actorLogin === this.loginOf(account.id)
+        );
     }
   }
 
-  /** Jobs of one run, fetched lazily when the run node is expanded. */
-  async fetchJobs(account: AccountConfig, w: WatchedWorkflow, runId: number): Promise<JobInfo[]> {
-    const key = workflowKey(account.id, w);
+  /** Jobs of one run/build, fetched lazily when the run node is expanded. */
+  async fetchJobs(account: AccountConfig, item: WatchedItem, runId: number): Promise<JobInfo[]> {
+    const key = itemKey(account.id, item);
     const state = this.states.get(key);
     const cached = state?.jobsByRun[runId];
     if (cached) {
       return cached;
     }
-    const res = await this.api(account, listJobsUrl(account.baseUrl, w.owner, w.repo, runId));
-    if (res.status < 200 || res.status >= 300) {
-      throw new Error(`HTTP ${res.status}`);
+    let jobs: JobInfo[];
+    if (isPlanEntry(item)) {
+      // Bamboo: one lazy request for the build's detail, whose stages
+      // carry the job results. Polling never fans out per build.
+      const run = state?.runs.find((r) => r.id === runId);
+      if (!run?.key) {
+        return [];
+      }
+      const res = await this.api(account, bambooResultDetailUrl(account.baseUrl, run.key));
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      jobs = parseBambooStages(res.json);
+    } else {
+      const res = await this.api(account, listJobsUrl(account.baseUrl, item.owner, item.repo, runId));
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      jobs = parseJobs(res.json);
     }
-    const jobs = parseJobs(res.json);
     if (state) {
       state.jobsByRun[runId] = jobs;
     }

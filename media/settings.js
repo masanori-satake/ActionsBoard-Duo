@@ -9,6 +9,7 @@
   let tokens = {}; // accountId -> typed token (session only)
   let removedAccountIds = [];
   let discovered = {}; // groupId -> [{ name, file }]
+  let discoveredPlans = {}; // groupId -> [{ projectKey, projectName, planKey, name }]
   let requestSeq = 0;
   const pending = {}; // requestId -> callback
 
@@ -62,15 +63,43 @@
 
   // ---------- Accounts ----------
 
+  function accountKindOf(account) {
+    return account && account.kind === "bamboo" ? "bamboo" : "github";
+  }
+
+  function groupKind(group) {
+    return accountKindOf(state.config.accounts.find((a) => a.id === group.accountId));
+  }
+
   function accountDisplayName(account) {
     return account.name && account.name.trim() !== "" ? account.name : S.unnamedAccount;
   }
 
   function accountCard(account) {
+    const kind = accountKindOf(account);
     const heading = h("h3", { class: "card-title" }, accountDisplayName(account));
     const nameInput = textInput(account.name, (v) => {
       account.name = v;
       heading.textContent = accountDisplayName(account);
+    });
+    const kindSelect = h("select", null);
+    for (const [value, label] of [
+      ["github", S.kindGitHub],
+      ["bamboo", S.kindBamboo],
+    ]) {
+      kindSelect.appendChild(h("option", { value, selected: kind === value }, label));
+    }
+    kindSelect.addEventListener("change", () => {
+      account.kind = kindSelect.value;
+      // Keep the URL plausible for the newly chosen service: clear the
+      // GitHub default when switching to Bamboo, restore it when
+      // switching back to GitHub with an empty URL.
+      if (account.kind === "bamboo" && account.baseUrl === "https://api.github.com") {
+        account.baseUrl = "";
+      } else if (account.kind === "github" && (!account.baseUrl || account.baseUrl.trim() === "")) {
+        account.baseUrl = "https://api.github.com";
+      }
+      render();
     });
     const resultSpan = h("span", { id: `test-result-${account.id}` });
     const tokenInput = h("input", {
@@ -97,6 +126,7 @@
             requestId,
             accountId: account.id,
             baseUrl: account.baseUrl,
+            kind,
             token: tokens[account.id] || "",
           });
         },
@@ -117,10 +147,18 @@
         "div",
         { class: "row" },
         labeled(S.accountName, nameInput),
-        labeled(S.baseUrl, textInput(account.baseUrl, (v) => (account.baseUrl = v))),
+        labeled(S.kind, kindSelect),
         removeBtn,
       ),
-      h("div", { class: "hint" }, S.baseUrlHint),
+      h(
+        "div",
+        { class: "row" },
+        labeled(
+          kind === "bamboo" ? S.baseUrlBamboo : S.baseUrl,
+          textInput(account.baseUrl, (v) => (account.baseUrl = v)),
+        ),
+      ),
+      h("div", { class: "hint" }, kind === "bamboo" ? S.baseUrlBambooHint : S.baseUrlHint),
       h("div", { class: "row" }, labeled(S.token, tokenInput), testBtn, resultSpan, loginInfo),
     );
   }
@@ -130,11 +168,14 @@
   function workflowRow(group, w) {
     const star = h("input", { type: "checkbox", checked: w.starred === true });
     star.addEventListener("change", () => (w.starred = star.checked));
+    // Entry shape follows the group's account kind: plans show
+    // project key + plan key, workflows show owner/repo + file.
+    const isPlan = w.planKey !== undefined;
     return h(
       "tr",
       null,
-      h("td", null, `${w.owner}/${w.repo}`),
-      h("td", null, w.workflow),
+      h("td", null, isPlan ? w.projectKey : `${w.owner}/${w.repo}`),
+      h("td", null, isPlan ? w.planKey : w.workflow),
       h("td", { class: "star" }, star),
       h(
         "td",
@@ -149,6 +190,9 @@
 
   function addBox(group) {
     const account = state.config.accounts.find((a) => a.id === group.accountId);
+    if (accountKindOf(account) === "bamboo") {
+      return addBoxBamboo(group, account);
+    }
     // Discovery
     const dOwner = h("input", { type: "text", placeholder: S.owner });
     const dRepo = h("input", { type: "text", placeholder: S.repo });
@@ -228,16 +272,106 @@
     container.replaceChildren(...checks.map((c) => c.row), addBtn);
   }
 
+  function addBoxBamboo(group, account) {
+    const dList = h("div", { class: "checklist" });
+    const listBtn = h(
+      "button",
+      {
+        class: "add-btn",
+        onclick: () => {
+          if (!account || !account.baseUrl || account.baseUrl.trim() === "") {
+            dList.replaceChildren(h("span", { class: "result-ng" }, S.plansNeedsServer));
+            return;
+          }
+          const requestId = `discover-plans-${++requestSeq}`;
+          pending[requestId] = (msg) => {
+            if (msg.error) {
+              dList.replaceChildren(h("span", { class: "result-ng" }, msg.error));
+              return;
+            }
+            discoveredPlans[group.id] = msg.plans;
+            renderDiscoveredPlans(group, dList);
+          };
+          vscode.postMessage({
+            type: "discoverPlans",
+            requestId,
+            groupId: group.id,
+            accountId: group.accountId,
+            baseUrl: account.baseUrl,
+            token: tokens[group.accountId] || "",
+          });
+        },
+      },
+      S.listPlans,
+    );
+    return h(
+      "div",
+      { class: "addbox" },
+      h("h3", { class: "addbox-title" }, S.addByDiscoveryPlans),
+      h("div", { class: "row" }, listBtn),
+      dList,
+    );
+  }
+
+  function renderDiscoveredPlans(group, container) {
+    const items = discoveredPlans[group.id] || [];
+    if (items.length === 0) {
+      container.replaceChildren(h("span", { class: "hint" }, S.noPlans));
+      return;
+    }
+    // The payload arrives sorted by project, then plan: a heading per
+    // project, one checkbox per plan. Plans already in the group are
+    // shown ticked and disabled, and adding never duplicates a plan.
+    const children = [];
+    const checks = [];
+    let lastProject = null;
+    for (const p of items) {
+      if (p.projectKey !== lastProject) {
+        children.push(h("h4", { class: "checklist-group" }, `${p.projectName} (${p.projectKey})`));
+        lastProject = p.projectKey;
+      }
+      const already = group.workflows.some((w) => w.planKey === p.planKey);
+      const cb = h("input", { type: "checkbox", checked: true });
+      if (already) {
+        cb.disabled = true;
+      }
+      checks.push({ p, cb, already });
+      children.push(h("label", { class: "inline" }, cb, `${p.name} (${p.planKey})`));
+    }
+    const addBtn = h(
+      "button",
+      {
+        class: "add-btn",
+        onclick: () => {
+          for (const { p, cb, already } of checks) {
+            if (cb.checked && !already) {
+              group.workflows.push({ projectKey: p.projectKey, planKey: p.planKey, starred: true });
+            }
+          }
+          render();
+        },
+      },
+      `+ ${S.addSelected}`,
+    );
+    children.push(addBtn);
+    container.replaceChildren(...children);
+  }
+
   function groupCard(group) {
+    const isBamboo = groupKind(group) === "bamboo";
     const accountSelect = h("select", null);
     for (const a of state.config.accounts) {
       const opt = h("option", { value: a.id, selected: a.id === group.accountId }, a.name);
       accountSelect.appendChild(opt);
     }
-    accountSelect.addEventListener("change", () => (group.accountId = accountSelect.value));
+    accountSelect.addEventListener("change", () => {
+      group.accountId = accountSelect.value;
+      // The entry editor's shape follows the account kind: re-render.
+      render();
+    });
     const table =
       group.workflows.length === 0
-        ? h("div", { class: "empty" }, S.noWorkflows)
+        ? h("div", { class: "empty" }, isBamboo ? S.noPlans : S.noWorkflows)
         : h(
             "table",
             { class: "workflows" },
@@ -247,8 +381,8 @@
               h(
                 "tr",
                 null,
-                h("th", null, S.repository),
-                h("th", null, S.workflowFile),
+                h("th", null, isBamboo ? S.project : S.repository),
+                h("th", null, isBamboo ? S.planKey : S.workflowFile),
                 h("th", null, S.starred),
                 h("th", null, ""),
               ),
@@ -268,7 +402,7 @@
           render();
         }),
       ),
-      h("h3", null, S.workflows),
+      h("h3", null, isBamboo ? S.plans : S.workflows),
       table,
       addBox(group),
     );
@@ -386,8 +520,9 @@
       tokens = {};
       removedAccountIds = [];
       discovered = {};
+      discoveredPlans = {};
       render();
-    } else if (msg.type === "testResult" || msg.type === "discovered") {
+    } else if (msg.type === "testResult" || msg.type === "discovered" || msg.type === "discoveredPlans") {
       const cb = pending[msg.requestId];
       if (cb) {
         delete pending[msg.requestId];

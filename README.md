@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v0.1.16-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v0.2.0-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -14,71 +14,81 @@
 <a id="english"></a>
 ## English
 
-**ActionsBoard-Duo** is the VS Code edition of ActionsBoard (originally a Chrome extension). It watches GitHub Actions and answers one question at a glance: *is everything running smoothly?*
+**ActionsBoard-Duo** watches your CI so you can tell at a glance whether everything is running smoothly. It works with GitHub Actions and Bamboo (Data Center).
 
-The board is a quiet tree in the Activity Bar: **account (server) → group → workflow → branch runs → jobs**. You do not need to open it while things are fine — an always-present status bar item carries the first layer of the gaze (success / failure / running counts, plus unreachable servers counted separately), and notifications tell you about failures, server outages and recoveries.
+The board is a tree in the Activity Bar: **account (server) → group → workflow or plan → runs and builds → jobs**. You rarely need to open it. The status bar always shows how many of the newest runs succeeded, failed, or are still running. A notification tells you when a build fails, when a server stops responding, and when it comes back.
 
-It is a "-Duo": where a "-Solo" is complete on its own and fully local, a "-Duo" works by pairing with something else — here, the CI servers you configure. The pairing stays minimal and read-only: polling of the APIs you configured, nothing more. Tokens live only in SecretStorage, never in settings files.
+The name ends in "-Duo" because the extension works together with your CI servers. (The "-Solo" series works entirely on its own, locally.) The connection is read-only: the extension polls the servers you configure and never changes anything on them. Tokens are stored only in SecretStorage, never in settings files.
 
-Current version: **v0.1.16**
+Current version: **v0.2.0**
 
 ---
 
 <a id="en-key-features"></a>
 ### 💡 Key Features
 
-- **Tree-only board** — accounts, groups, workflows, branch runs, and the jobs inside a run (matrix breakdowns included). Success rows stay quiet; failures are marked at the row head.
-- **Scope filters** — title-bar filters for All / Mine / Starred, plus a "starred only" display mode that hides everything else, groups and servers included.
-- **Expansion selectors** — "Failures only" (the initial state), "Running too", "Expand all", "Collapse all". If you adjust expansion by hand, the view says so.
-- **Symbol marks** — ★ means starred (a workflow you are interested in; toggle it on the row). A person mark means the newest runs include one started by your own account (matched automatically from the run actor).
-- **Status bar summary** — always present: glyphs and counts for success, failure and running, and unreachable servers as their own count (normally 0). An outage is never counted as a build failure. Clicking it opens the board.
-- **Server liveness** — each account is probed on its own cycle, separate from build polling. Reachable / auth error / unreachable are kept distinct; an unreachable server's rows switch to an "unreachable" presentation with the last-confirmed time, and a recovery marker appears when it comes back.
-- **Notifications** — build failures, server outages and recoveries (outage and recovery can each be switched off; failure notifications can be scoped to all / mine / starred).
-- **Accounts** — multiple GitHub / GitHub Enterprise Server accounts (PAT + API base URL), each with a connection test; your login is fetched automatically for the "Mine" matching.
-- **Groups** — bundle workflows across repositories by purpose. Add workflows by discovering them from a repository: list the repository's workflows and check the ones to watch. Workflows are labelled with their own GitHub workflow name once it is known (the file name until the first fetch). Stars per workflow.
-- **One-screen settings form** — accounts, groups, workflows, polling and notifications on a single page with an Apply (Save) button. No serial wizard dialogs.
-- **View-only** — no re-run or cancel operations. It is a tool for watching.
+- **Two CI services** — GitHub Actions (github.com and GitHub Enterprise Server) and Bamboo (Data Center), side by side on the same board.
+- **A tree you can read at a glance** — account → group → workflow or plan → runs → jobs, matrix jobs included. Each row's icon shows its state, and a workflow's colour comes from its newest run.
+- **Status bar summary** — the counts of success, failure, and running across everything you watch, always visible. Servers that cannot be reached are counted separately, never as build failures. Click the item to open the board.
+- **Filters** — show All, only Mine (runs your account started), or only Starred. A separate toggle shows starred entries only and hides everything else, groups included.
+- **Expansion buttons** — open failures only, failures and running, everything, or collapse everything. The button for the current state is shown filled; if you open or close rows by hand, no button stays highlighted.
+- **Marks** — ★ marks entries you star (toggle it with the star button on the row). A person mark appears on a GitHub workflow when its newest runs include one your account started. Bamboo builds do not say who started them, so plans never get the person mark.
+- **GitHub Pages** — when a workflow's newest run succeeds and its repository publishes a Pages site, the row also shows the deployment state (deploying / deployed / deployment failed), so you can follow the site update after the green run.
+- **Server health** — each account is checked on its own schedule, separate from build polling. The board tells apart "reachable", "authentication error", and "unreachable". While a server is unreachable, its rows say so and show when it last answered; when it answers again, a recovery mark appears for a while.
+- **Notifications** — for build failures, server outages, and recoveries. Outage and recovery can each be turned off. Failure notifications can be limited to all, mine, or starred.
+- **Groups** — bundle workflows and plans across repositories and projects by purpose: one group for releases, one for the services you look after, and so on.
+- **Drag to reorder** — drag a workflow or plan to change its order, or to move it into another group of the same account. Drag a group to reorder groups. The order is saved to settings and used everywhere, including the settings form.
+- **One settings screen** — accounts, groups, polling, and notifications on a single page. Nothing is applied until you press Save. Cancel closes the page and discards your edits.
+- **Watching only** — no re-run and no cancel buttons. The extension never writes to your CI servers.
 
 <a id="en-how-to-use"></a>
 ### 🚀 How to Use
 
-1. Install the extension and open the ActionsBoard-Duo icon in the Activity Bar.
-2. Open Settings (gear in the view title) and add an account: a name, the API base URL (`https://api.github.com`, or `https://<host>/api/v3` for GitHub Enterprise Server) and a personal access token. Use "Test connection" to check it.
-3. Add a group, choose its account, and add workflows by discovering them from a repository.
-4. Press Save. Polling starts; the tree fills in and the status bar shows the counts.
-5. Star the workflows you care about; use the title-bar filters and expansion selectors to shape the view.
+1. Install the extension, then click the ActionsBoard-Duo icon in the Activity Bar.
+2. Click the gear in the view title to open Settings, and add an account:
+   - Pick the service: GitHub or Bamboo.
+   - GitHub: the API base URL — `https://api.github.com`, or `https://<host>/api/v3` for GitHub Enterprise Server — and a personal access token that can read Actions.
+   - Bamboo: the server's base URL (for example `https://bamboo.example.com`) and a personal access token.
+   - "Test connection" checks the URL and token, and shows the name it signed in as.
+3. Add a group and choose its account.
+4. Add what to watch. For GitHub, type a repository's owner and name, list its workflows, and tick the ones you want. For Bamboo, list the server's plans and tick the ones you want. New entries start out starred.
+5. Press Save. Polling starts, the tree fills in, and the status bar shows the counts.
+6. Shape the view: star the entries you care about, use the filter and expansion buttons in the view title, and drag rows to reorder them.
 
 <a id="en-commands"></a>
 ### ⌨️ Commands
 
-- **Refresh** — poll builds and liveness now.
-- **Scope: All / Scope: Mine / Scope: Starred** — one title-bar button per scope state; the current state is shown filled.
-- **Show Starred Only / Show All** — toggle the display mode.
-- **Expand Failures Only / Expand Running Too / Expand All / Collapse All** — expansion selectors; the current mode is shown filled.
+- **Refresh** — fetch builds and server health now.
+- **Scope: All / Scope: Mine / Scope: Starred** — the scope filter. There is one button per state in the view title, and the current state is shown filled.
+- **Show Starred Only / Show All** — switch the display mode.
+- **Expand Failures Only / Expand Running Too / Expand All / Collapse All** — the expansion buttons. The current state is shown filled.
+- **Open Workflow Page in Browser / Open Plan in Browser** — on a row's right-click menu; opens that workflow or plan on its server.
 - **Open Settings (Accounts, Groups, Workflows)** — the one-screen settings form.
 
 <a id="en-settings"></a>
 ### 🔧 Settings
 
-Polling defaults to 30 seconds while the view is visible and 300 seconds while it is hidden; the liveness cycle defaults to 120 seconds. All three are configurable (`actionsBoardDuo.*`). Accounts and groups are stored in user settings (without tokens); tokens are stored in SecretStorage only.
+Builds are fetched every 30 seconds while the board is visible and every 300 seconds while it is hidden. Server health is checked every 120 seconds. You can change all three on the settings screen or in settings JSON (`actionsBoardDuo.pollIntervalVisibleSeconds`, `actionsBoardDuo.pollIntervalHiddenSeconds`, `actionsBoardDuo.livenessIntervalSeconds`).
+
+Accounts and groups are stored in your user settings (`actionsBoardDuo.accounts`, `actionsBoardDuo.groups`), so you can read, edit, and back them up as JSON. Tokens are not in there — they are kept in SecretStorage only.
 
 <a id="en-requirements"></a>
 ### 📋 Requirements
 
 - VS Code 1.90 or later.
-- A personal access token for each GitHub / GitHub Enterprise Server account you watch (read access to Actions is enough).
+- For each account, a personal access token with read access: Actions read access for GitHub, and a token for a user who can view the plans for Bamboo.
 
 <a id="en-privacy"></a>
 ### 🔒 Data Storage & Privacy
 
-- Read-only polling of the APIs you configured. No telemetry, no tracking, nothing is sent anywhere else.
-- Tokens live only in SecretStorage, never in settings files. Accounts and groups live in your user settings (`actionsBoardDuo.*`), which you can edit or back up directly.
+- Read-only. The extension fetches from the servers you configured with GET requests. It never posts, re-runs, or cancels anything.
+- No telemetry and no tracking. The only requests it makes are to your own CI servers.
+- Tokens live only in SecretStorage. They never appear in settings files, and nothing exports them.
 
 <a id="en-roadmap"></a>
 ### 🧭 Roadmap
 
-- Bamboo (Data Center) adapter — stage 1 continues with a second CI service on the same board.
-- GitHub Pages two-stage tracking (carried over from the Chrome edition's design).
+- More CI services on the same board — GitLab CI and Jenkins are under study (stage 2).
 
 <a id="en-license"></a>
 ### 📄 License
@@ -90,71 +100,81 @@ MIT — see [LICENSE](LICENSE).
 <a id="japanese"></a>
 ## 日本語
 
-**ActionsBoard-Duo** は、ActionsBoard（もともと Chrome 拡張版）の VS Code 版です。GitHub Actions を監視して、「順調にいっているか」を一目で答えるための道具です。
+**ActionsBoard-Duo** は、CI が順調に回っているかを一目で確かめるための拡張機能です。GitHub Actions と Bamboo（Data Center）に対応します。
 
-盤面はアクティビティバーの静かなツリーです: **アカウント（サーバ）→ グループ → ワークフロー → ブランチ別ラン → ジョブ**。順調な間は開く必要はありません。第1層の眺めは常駐のステータスバー項目が担い（成功/失敗/実行中の件数と、不通のサーバを独立に数えた件数）、失敗・不通・復旧は通知で知らせます。
+盤面はアクティビティバーのツリーです: **アカウント（サーバ）→ グループ → ワークフロー／プラン → 実行・ビルド → ジョブ**。普段は開く必要はありません。ステータスバーには、監視中の最新の実行について、成功・失敗・実行中の件数が常に出ます。ビルドが失敗したとき、サーバに届かなくなったとき、復旧したときは、通知で知らせます。
 
-これは「-Duo」です。「-Solo」が単体で完結し完全ローカルであるのに対し、「-Duo」は何かと組になって働きます。ここでは、あなたが設定した CI サーバです。連携は最小限かつ読み取り専用に保ちます。設定した API へのポーリングだけで、それ以外は何もしません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
+名前の「-Duo」は、CI サーバと組になって働くという意味です（「-Solo」シリーズは単体で、完全ローカルに動きます）。サーバへは読み取りだけです。設定したサーバを定期的に取得しに行くだけで、サーバ側のものを変更することはありません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v0.1.16**
+現在のバージョン: **v0.2.0**
 
 ---
 
 <a id="ja-key-features"></a>
 ### 💡 特長
 
-- **ツリー専用の盤面** — アカウント、グループ、ワークフロー、ブランチ別ラン、ランの中のジョブ（マトリクスの内訳を含む）。成功の行は静かに、失敗は行頭の印で示します。
-- **スコープのフィルター** — タイトルバーの「すべて / 自分の / 興味がある」に加え、星を付けたものだけを表示するモード（対象を含まないグループやサーバは丸ごと隠れます）。
-- **展開セレクター** — 「エラーのみ展開」（初期表示）、「実行中も展開」、「すべて展開」、「すべて畳む」。手動で開閉を変えると、その旨が表示に出ます。
-- **シンボルの印** — ★ は「興味がある」（行で付け外しできます）。人の印は、最新の実行に自分のアカウントが起こしたものが含まれること（実行者との一致で自動判定）。
-- **ステータスバーの要約** — 常駐。成功/失敗/実行中のグリフと件数に加え、不通のサーバを独立の件数として並べます（通常は0）。不通をビルド失敗に数えることはありません。クリックで盤面が開きます。
-- **サーバの死活監視** — アカウントごとに、ビルド取得とは別周期で疎通を確認します。到達可/認証エラー/到達不可を区別し、到達できないサーバの行は「不通」の見た目（最終確認時刻つき）に切り替わり、復旧したら復旧の印が出ます。
-- **通知** — ビルド失敗、サーバの不通、復旧（不通と復旧は個別にオフ可。失敗通知は「すべて / 自分だけ / 星つきだけ」に範囲を絞れます）。
-- **アカウント** — GitHub / GitHub Enterprise Server のアカウントを複数登録（PAT + API ベースURL）。接続テストつき。自分のログイン名は自動取得し、「自分の」の判定に使います。
-- **グループ** — リポジトリを跨いで、ワークフローを目的別に束ねます。追加はリポジトリからの一括追加のみ: リポジトリのワークフロー一覧を取得し、監視するものにチェックを入れて追加します。ワークフローの表示名は、取得でき次第 GitHub 上のワークフロー名になります（初回取得まではファイル名）。ワークフローごとに星を付けられます。
-- **一画面の設定フォーム** — アカウント、グループ、ワークフロー、ポーリング、通知を1ページにまとめ、保存（適用）ボタンで反映します。逐次ウィザードは使いません。
-- **見るだけ** — 再実行やキャンセルの操作は持ちません。眺めるための道具です。
+- **2つの CI サービス** — GitHub Actions（github.com と GitHub Enterprise Server）と Bamboo（Data Center）を、同じ盤面に並べて見られます。
+- **一目で読めるツリー** — アカウント → グループ → ワークフロー／プラン → 実行 → ジョブ（マトリクスの内訳を含む）。行のアイコンが状態を示し、ワークフローの色は最新の実行で決まります。
+- **ステータスバーの要約** — 監視中の成功・失敗・実行中の件数が常に出ます。届かないサーバは別の件数として数え、ビルド失敗には数えません。クリックすると盤面が開きます。
+- **フィルター** — 「すべて」「自分の（自分のアカウントが起こした実行）」「興味がある」の切り替えと、星を付けたものだけを表示する切り替え（それ以外はグループごと隠れます）。
+- **展開ボタン** — エラーだけ開く、実行中も開く、すべて開く、すべて畳む。現在の状態のボタンは塗りつぶしで示されます。手動で開閉を変えると、どのボタンも塗りつぶされなくなります。
+- **印** — ★ は星を付けたもの（行の星ボタンで付け外しできます）。人の印は、GitHub のワークフローで、最新の実行に自分のアカウントが起こしたものが含まれるときに付きます。Bamboo のビルドには「誰が起こしたか」の情報がないため、プランに人の印は付きません。
+- **GitHub Pages** — ワークフローの最新の実行が成功し、そのリポジトリが Pages を公開している場合、行にデプロイの状態（デプロイ中／デプロイ完了／デプロイ失敗）も出ます。緑になったあと、サイトの更新が終わるまでを見届けられます。
+- **サーバの死活** — アカウントごとに、ビルド取得とは別の周期で確認します。「到達可」「認証エラー」「到達不可」を区別します。届かない間は、行にその旨と、最後に応答した時刻が出ます。復旧すると、しばらくの間、復旧の印が出ます。
+- **通知** — ビルド失敗、サーバの不通、復旧。不通と復旧は個別にオフにできます。失敗通知は「すべて／自分だけ／星つきだけ」に範囲を絞れます。
+- **グループ** — リポジトリやプロジェクトを跨いで、目的別に束ねられます（リリース用、担当サービス用など）。
+- **ドラッグで並べ替え** — ワークフローやプランをドラッグして、順序を変えたり、同じアカウントの別グループへ移したりできます。グループ自体の並べ替えもできます。順序は設定に保存され、設定フォームでも同じ順序で出ます。
+- **一画面の設定** — アカウント、グループ、ポーリング、通知を1ページで編集します。「保存」を押すまで反映されません。「キャンセル」で閉じると、変更は破棄されます。
+- **見るだけ** — 再実行やキャンセルのボタンはありません。サーバへ書き込むことはありません。
 
 <a id="ja-how-to-use"></a>
 ### 🚀 使い方
 
 1. 拡張機能をインストールし、アクティビティバーの ActionsBoard-Duo アイコンを開きます。
-2. 設定（ビュータイトルの歯車）を開き、アカウントを追加します: 名前、API ベースURL（`https://api.github.com`、GitHub Enterprise Server は `https://<ホスト>/api/v3`）、アクセストークン。「接続テスト」で確認できます。
-3. グループを追加してアカウントを選び、ワークフローを追加します（リポジトリから一括追加）。
-4. 保存を押すとポーリングが始まり、ツリーとステータスバーに状態が出ます。
-5. 気になるワークフローに星を付け、タイトルバーのフィルターと展開セレクターで見え方を整えます。
+2. ビュータイトルの歯車から設定を開き、アカウントを追加します。
+   - サービスの種類で GitHub か Bamboo を選びます。
+   - GitHub: API ベースURL（`https://api.github.com`、GitHub Enterprise Server は `https://<ホスト>/api/v3`）と、Actions を読み取れるアクセストークン。
+   - Bamboo: サーバのベース URL（例: `https://bamboo.example.com`）とアクセストークン。
+   - 「接続テスト」を押すと、URL とトークンを確認し、サインインできた名前を表示します。
+3. グループを追加し、アカウントを選びます。
+4. 監視するものを追加します。GitHub は、リポジトリの owner と名前を入れてワークフロー一覧を取得し、見たいものにチェックを入れます。Bamboo は、サーバのプラン一覧を取得し、見たいものにチェックを入れます。追加したものには最初から星が付きます。
+5. 「保存」を押すと取得が始まり、ツリーとステータスバーに状態が出ます。
+6. 見え方を整えます。気になるものに星を付け、タイトルバーのフィルターと展開ボタンを使い、行をドラッグして並べ替えます。
 
 <a id="ja-commands"></a>
 ### ⌨️ コマンド
 
-- **更新** — ビルドと死活を今すぐ取得。
-- **スコープ: すべて / スコープ: 自分の / スコープ: 興味がある** — スコープフィルター。状態ごとにタイトルバーのボタンがあり、現在の状態は塗りつぶしで示されます。
-- **興味があるものだけ表示 / 全体を表示** — 表示モードの切り替え。
-- **エラーのみ展開 / 実行中も展開 / すべて展開 / すべて畳む** — 展開セレクター。現在のモードは塗りつぶしで示されます。
+- **更新** — ビルドとサーバの死活を今すぐ取得します。
+- **スコープ: すべて／スコープ: 自分の／スコープ: 興味がある** — スコープフィルター。状態ごとにタイトルバーのボタンがあり、現在の状態は塗りつぶしで示されます。
+- **興味があるものだけ表示／全体を表示** — 表示モードの切り替え。
+- **エラーのみ展開／実行中も展開／すべて展開／すべて畳む** — 展開ボタン。現在の状態は塗りつぶしで示されます。
+- **ワークフローのページをブラウザで開く／プランをブラウザで開く** — 行の右クリックメニューから、そのワークフローやプランのページをサーバ側で開きます。
 - **設定を開く（アカウント・グループ・ワークフロー）** — 一画面の設定フォーム。
 
 <a id="ja-settings"></a>
 ### 🔧 設定
 
-ポーリングの既定は、表示中30秒/非表示300秒、死活確認は120秒です。いずれも `actionsBoardDuo.*` で変更できます。アカウントとグループはユーザー設定に保存されます（トークンは除く）。トークンは SecretStorage のみに置きます。
+ビルドの取得は、盤面の表示中が30秒ごと、非表示の間が300秒ごとです。サーバの死活確認は120秒ごとです。いずれも設定画面か、設定 JSON（`actionsBoardDuo.pollIntervalVisibleSeconds`、`actionsBoardDuo.pollIntervalHiddenSeconds`、`actionsBoardDuo.livenessIntervalSeconds`）で変更できます。
+
+アカウントとグループはユーザー設定（`actionsBoardDuo.accounts`、`actionsBoardDuo.groups`）に保存されるので、JSON のまま読んだり、編集したり、バックアップしたりできます。トークンはそこには入っていません。SecretStorage のみに置きます。
 
 <a id="ja-requirements"></a>
 ### 📋 動作環境
 
 - VS Code 1.90 以降。
-- 監視する GitHub / GitHub Enterprise Server アカウントごとのアクセストークン（Actions の読み取り権限で十分です）。
+- アカウントごとに、読み取り権限のアクセストークン（GitHub は Actions の読み取り、Bamboo はプランを見られるユーザのトークン）。
 
 <a id="ja-privacy"></a>
 ### 🔒 データの保存とプライバシー
 
-- 設定した API への読み取り専用ポーリングのみ。テレメトリもトラッキングもなく、他のどこへも送信しません。
-- トークンは SecretStorage のみに置き、設定ファイルには書きません。アカウントとグループはユーザー設定（`actionsBoardDuo.*`）に保存されるので、直接編集やバックアップができます。
+- 読み取りだけです。設定したサーバへ GET で取得しに行くだけで、投稿、再実行、キャンセルなどはしません。
+- テレメトリもトラッキングもありません。リクエストの送信先は、設定した自分の CI サーバだけです。
+- トークンは SecretStorage のみに置きます。設定ファイルに出ることはなく、トークンを含む書き出し機能もありません。
 
 <a id="ja-roadmap"></a>
 ### 🧭 ロードマップ
 
-- Bamboo（Data Center）アダプタ — 第1段の続きとして、同じ盤面に2つ目の CI サービスを並べます。
-- GitHub Pages の2段階追跡（Chrome 版の設計からの継承）。
+- 同じ盤面への CI サービスの追加 — GitLab CI と Jenkins を検討中です（第2段）。
 
 <a id="ja-license"></a>
 ### 📄 ライセンス

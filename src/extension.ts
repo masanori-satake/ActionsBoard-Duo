@@ -1,12 +1,104 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
+import { bambooBrowseUrl } from "./core/bamboo";
 import { ExpansionEpoch, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
-import type { DisplayMode, ScopeFilter } from "./core/types";
+import { moveGroup, moveWatchedItem } from "./core/reorder";
+import type { DisplayMode, ScopeFilter, WatchedItem } from "./core/types";
+import { isPlanEntry, sameItem } from "./core/types";
 import { SettingsPanel } from "./settingsPanel";
 import { BoardStatusBar } from "./statusBar";
 import { readConfig, TokenStore, writeConfig } from "./store";
 import { BoardTreeProvider, type BoardNode } from "./treeProvider";
+
+/** The tree's own drag & drop MIME type — drops from elsewhere are ignored. */
+const DND_MIME = "application/vnd.actionsboardduo.node";
+
+type DragPayload =
+  | { type: "item"; groupId: string; item: WatchedItem }
+  | { type: "group"; groupId: string };
+
+/**
+ * Drag & drop on the board tree: drag a workflow/plan to reorder it
+ * within its group or move it into another group of the same account;
+ * drag a group to reorder groups. The resulting order is written to the
+ * settings arrays, whose order is the display order everywhere. The
+ * pure move operations live in core/reorder; this controller only
+ * translates between tree nodes and config entries.
+ */
+class BoardDragAndDropController implements vscode.TreeDragAndDropController<BoardNode> {
+  readonly dropMimeTypes = [DND_MIME];
+  readonly dragMimeTypes = [DND_MIME];
+
+  handleDrag(source: readonly BoardNode[], dataTransfer: vscode.DataTransfer): void {
+    const node = source[0];
+    if (!node) {
+      return;
+    }
+    let payload: DragPayload | undefined;
+    if (node.kind === "workflow" && node.group && node.workflow) {
+      payload = { type: "item", groupId: node.group.id, item: node.workflow };
+    } else if (node.kind === "group" && node.group) {
+      payload = { type: "group", groupId: node.group.id };
+    }
+    if (payload) {
+      dataTransfer.set(DND_MIME, new vscode.DataTransferItem(JSON.stringify(payload)));
+    }
+  }
+
+  async handleDrop(target: BoardNode | undefined, dataTransfer: vscode.DataTransfer): Promise<void> {
+    const raw = dataTransfer.get(DND_MIME)?.value;
+    if (typeof raw !== "string") {
+      return;
+    }
+    let payload: DragPayload;
+    try {
+      payload = JSON.parse(raw) as DragPayload;
+    } catch {
+      return;
+    }
+    // Job nodes carry no group/entry of their own; their parent run does.
+    const anchor = target?.kind === "job" ? target.parent : target;
+    const config = readConfig();
+    let changed = false;
+    if (payload.type === "item") {
+      let targetGroupId: string | undefined;
+      let beforeItem: WatchedItem | undefined;
+      if (anchor?.kind === "workflow" && anchor.group && anchor.workflow) {
+        // Dropped on an entry: insert before it.
+        targetGroupId = anchor.group.id;
+        beforeItem = anchor.workflow;
+      } else if (anchor?.group) {
+        // Dropped on a group (append) or on a run (insert before its entry).
+        targetGroupId = anchor.group.id;
+        beforeItem = anchor.kind === "run" ? anchor.workflow : undefined;
+      }
+      if (!targetGroupId) {
+        return;
+      }
+      if (beforeItem && targetGroupId === payload.groupId && sameItem(beforeItem, payload.item)) {
+        return; // Dropped onto itself.
+      }
+      changed = moveWatchedItem(config.groups, payload.groupId, payload.item, targetGroupId, beforeItem);
+    } else {
+      // Group drag: reorder only against another group of the same account.
+      const anchorGroup = anchor?.group;
+      if (!anchorGroup || anchorGroup.id === payload.groupId) {
+        return;
+      }
+      const dragged = config.groups.find((g) => g.id === payload.groupId);
+      if (!dragged || dragged.accountId !== anchorGroup.accountId) {
+        return;
+      }
+      changed = moveGroup(config.groups, payload.groupId, anchorGroup.id);
+    }
+    if (changed) {
+      // Writing the config fires the configuration-change handler,
+      // which reloads the board and refreshes the tree.
+      await writeConfig(config);
+    }
+  }
+}
 
 export function activate(context: vscode.ExtensionContext): void {
   const tokens = new TokenStore(context.secrets);
@@ -21,7 +113,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const treeView = vscode.window.createTreeView("actionsBoardDuo.tree", {
     treeDataProvider: provider,
-    showCollapseAll: true,
+    dragAndDropController: new BoardDragAndDropController(),
+    // No built-in collapse-all button: the extension's own collapse
+    // control sits inside the expansion button group in the view title.
+    // With showCollapseAll on, VS Code renders its own collapse button
+    // apart from that group, which reads as a stray duplicate.
+    showCollapseAll: false,
   });
   context.subscriptions.push(treeView, board, statusBar);
 
@@ -56,7 +153,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const collapseAllInternal = async () => {
     guardProgrammatic();
-    await vscode.commands.executeCommand("workbench.actions.treeView.actionsBoardDuo.tree.collapseAll");
+    try {
+      await vscode.commands.executeCommand("workbench.actions.treeView.actionsBoardDuo.tree.collapseAll");
+    } catch {
+      // The workbench collapse command is registered for the tree view
+      // itself (not tied to the title button); if it is ever missing,
+      // collapsing is a no-op rather than an error in the caller.
+    }
   };
 
   const applyExpansion = async (mode: ExpansionMode) => {
@@ -208,10 +311,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     const config = readConfig();
     const group = config.groups.find((g) => g.id === node.group!.id);
-    const target = group?.workflows.find(
-      (w) =>
-        w.owner === node.workflow!.owner && w.repo === node.workflow!.repo && w.workflow === node.workflow!.workflow,
-    );
+    const target = group?.workflows.find((w) => sameItem(w, node.workflow!));
     if (target && (target.starred === true) !== starred) {
       target.starred = starred;
       await writeConfig(config);
@@ -228,10 +328,18 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   register("actionsBoardDuo.openWorkflowPage", async (node?: BoardNode) => {
-    if (!node?.workflow || !node.account) {
+    if (!node?.workflow || !node.account || isPlanEntry(node.workflow)) {
       return;
     }
     const url = workflowPageUrl(node.workflow.owner, node.workflow.repo, node.workflow.workflow, node.account.baseUrl);
+    await vscode.env.openExternal(vscode.Uri.parse(url));
+  });
+
+  register("actionsBoardDuo.openPlanPage", async (node?: BoardNode) => {
+    if (!node?.workflow || !node.account || !isPlanEntry(node.workflow)) {
+      return;
+    }
+    const url = bambooBrowseUrl(node.account.baseUrl, node.workflow.planKey);
     await vscode.env.openExternal(vscode.Uri.parse(url));
   });
 

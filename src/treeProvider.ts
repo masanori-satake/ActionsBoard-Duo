@@ -7,12 +7,21 @@ import type {
   DisplayMode,
   GroupConfig,
   JobInfo,
+  PagesStatus,
   RunInfo,
   RunStatus,
   ScopeFilter,
-  WatchedWorkflow,
+  WatchedItem,
 } from "./core/types";
-import { groupDisplayName, workflowDisplayName, workflowKey } from "./core/types";
+import {
+  accountKind,
+  groupDisplayName,
+  isPlanEntry,
+  itemKey,
+  pagesKey,
+  planDisplayName,
+  workflowDisplayName,
+} from "./core/types";
 import { isJa, t } from "./i18n";
 import type { Board } from "./board";
 
@@ -25,8 +34,10 @@ export interface BoardNode {
   children?: BoardNode[];
   account?: AccountConfig;
   group?: GroupConfig;
-  workflow?: WatchedWorkflow;
+  workflow?: WatchedItem;
   run?: RunInfo;
+  /** Row label override (Bamboo builds: branch name, or "#<build number>"). */
+  label?: string;
   job?: JobInfo;
   infoText?: string;
   /** Tone for "info" placeholder rows: neutral = no information (gray), warning = a real problem (yellow). */
@@ -85,6 +96,18 @@ export function relativeTime(iso: string, now = Date.now()): string {
   return isJa() ? `${day}日前` : `${day}d ago`;
 }
 
+/** Short Pages state word for the workflow row suffix and tooltip. */
+export function pagesText(status: PagesStatus): string {
+  switch (status) {
+    case "deliverable":
+      return t("pages.deliverable");
+    case "deploying":
+      return t("pages.deploying");
+    case "error":
+      return t("pages.error");
+  }
+}
+
 /** ★ = starred （興味がある）, 👤 = mine （自分の）. Both may appear. */
 export function marksFor(starred: boolean, mine: boolean): string {
   const marks: string[] = [];
@@ -125,7 +148,15 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     const roots: BoardNode[] = [];
     for (const account of accounts) {
       const accountNode: BoardNode = { kind: "account", id: `account:${account.id}`, account };
-      const vg = visibleGroups(groups, account.id, this.board.states, logins, this.scope, this.displayMode);
+      const vg = visibleGroups(
+        groups,
+        account.id,
+        this.board.states,
+        logins,
+        this.scope,
+        this.displayMode,
+        accountKind(account),
+      );
       const groupNodes: BoardNode[] = vg.map(({ group, workflows }) => {
         const groupNode: BoardNode = {
           kind: "group",
@@ -149,12 +180,12 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
   private buildWorkflowNode(
     account: AccountConfig,
     group: GroupConfig,
-    w: WatchedWorkflow,
+    w: WatchedItem,
     parent: BoardNode,
   ): BoardNode {
     const node: BoardNode = {
       kind: "workflow",
-      id: `workflow:${workflowKey(account.id, w)}`,
+      id: `workflow:${itemKey(account.id, w)}`,
       workflow: w,
       account,
       group,
@@ -165,15 +196,18 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       node.children = [];
       return node;
     }
-    const state = this.board.states.get(workflowKey(account.id, w));
+    const state = this.board.states.get(itemKey(account.id, w));
     node.children = (state?.branchRuns ?? []).map((run) => ({
       kind: "run" as const,
-      id: `run:${workflowKey(account.id, w)}:${run.id}`,
+      id: `run:${itemKey(account.id, w)}:${run.id}`,
       run,
       workflow: w,
       account,
       group,
       parent: node,
+      // Bamboo builds are labelled by branch when the payload carries
+      // one, else by build number; GitHub runs use the branch as-is.
+      label: isPlanEntry(w) ? (run.branch !== "" ? run.branch : `#${run.runNumber}`) : undefined,
     }));
     return node;
   }
@@ -204,7 +238,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         return item;
       }
       case "workflow":
-        return this.workflowItem(node);
+        return isPlanEntry(node.workflow!) ? this.planItem(node) : this.workflowItem(node);
       case "run":
         return this.runItem(node);
       case "job": {
@@ -268,8 +302,11 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
 
   private workflowItem(node: BoardNode): vscode.TreeItem {
     const w = node.workflow!;
+    if (isPlanEntry(w)) {
+      return this.planItem(node);
+    }
     const account = node.account!;
-    const key = workflowKey(account.id, w);
+    const key = itemKey(account.id, w);
     const state = this.board.states.get(key);
     const health = this.board.health.get(account.id);
     const unreachable = health?.state === "unreachable";
@@ -307,6 +344,17 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       item.iconPath = new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.gray"));
       parts.push(t("tree.noRuns"));
     }
+    // Two-stage Pages tracking: while the workflow's newest run is a
+    // success, the repository's Pages deployment state rides along as a
+    // quiet suffix (the Chrome edition shows the same state as a badge,
+    // under the same condition).
+    const pages =
+      state?.latest?.status === "success"
+        ? this.board.pagesStates.get(pagesKey(account.id, w.owner, w.repo))
+        : undefined;
+    if (pages) {
+      parts.push(`🌐 ${pagesText(pages.status)}`);
+    }
     item.description = parts.join(" · ");
     const tooltipLines = [
       `${workflowDisplayName(w, state?.workflowName)} — ${w.owner}/${w.repo}`,
@@ -318,6 +366,62 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         tooltipLines.push(`@${state.latest.actorLogin}`);
       }
     }
+    if (pages) {
+      tooltipLines.push(`GitHub Pages: ${pagesText(pages.status)}${pages.pageUrl ? ` · ${pages.pageUrl}` : ""}`);
+    }
+    if (state?.error) {
+      tooltipLines.push(`${t("tree.fetchError")}: ${state.error}`);
+    }
+    tooltipLines.push(t("tree.legend"));
+    item.tooltip = tooltipLines.join("\n");
+    return item;
+  }
+
+  private planItem(node: BoardNode): vscode.TreeItem {
+    const plan = node.workflow!;
+    if (!isPlanEntry(plan)) {
+      return this.workflowItem(node);
+    }
+    const account = node.account!;
+    const key = itemKey(account.id, plan);
+    const state = this.board.states.get(key);
+    const health = this.board.health.get(account.id);
+    const unreachable = health?.state === "unreachable";
+    // Bamboo builds carry no actor, so the person mark never applies.
+    const marks = marksFor(plan.starred === true, false);
+    const collapsible = !unreachable && (state?.branchRuns.length ?? 0) > 0;
+    const item = new vscode.TreeItem(
+      planDisplayName(plan, state?.planName),
+      collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+    );
+    item.contextValue = plan.starred === true ? "planStarred" : "plan";
+    const parts: string[] = [];
+    if (marks) {
+      parts.push(marks);
+    }
+    if (unreachable) {
+      item.iconPath = new vscode.ThemeIcon("debug-disconnect", new vscode.ThemeColor("charts.gray"));
+      parts.push(t("status.unreachable"));
+      if (health?.lastOkAt) {
+        parts.push(t("tree.lastConfirmed", formatTime(health.lastOkAt)));
+      }
+    } else if (state?.error && !state.latest) {
+      item.iconPath = new vscode.ThemeIcon("warning", new vscode.ThemeColor("charts.yellow"));
+      parts.push(t("tree.fetchError"));
+    } else if (state?.latest) {
+      const s = STATUS_ICON[state.latest.status];
+      item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(s.color));
+      parts.push(state.latest.branch !== "" ? state.latest.branch : `#${state.latest.runNumber}`);
+      parts.push(relativeTime(state.latest.updatedAt));
+    } else {
+      item.iconPath = new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("charts.gray"));
+      parts.push(t("tree.noRuns"));
+    }
+    item.description = parts.join(" · ");
+    const tooltipLines = [`${planDisplayName(plan, state?.planName)} — ${plan.projectKey}`, `${plan.planKey}`];
+    if (state?.latest) {
+      tooltipLines.push(`${statusText(state.latest.status)} · ${state.latest.title}`);
+    }
     if (state?.error) {
       tooltipLines.push(`${t("tree.fetchError")}: ${state.error}`);
     }
@@ -328,14 +432,14 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
 
   private runItem(node: BoardNode): vscode.TreeItem {
     const run = node.run!;
-    const item = new vscode.TreeItem(run.branch, vscode.TreeItemCollapsibleState.Collapsed);
+    const item = new vscode.TreeItem(node.label ?? run.branch, vscode.TreeItemCollapsibleState.Collapsed);
     item.contextValue = "run";
     const s = STATUS_ICON[run.status];
     // Only the workflow's newest run overall carries its status colour;
     // branch runs for other runs keep the glyph but are muted to gray, so a
     // stale failure on a side branch does not read as the current state.
     const state =
-      node.account && node.workflow ? this.board.states.get(workflowKey(node.account.id, node.workflow)) : undefined;
+      node.account && node.workflow ? this.board.states.get(itemKey(node.account.id, node.workflow)) : undefined;
     const color = isMutedRun(state?.latest, run) ? "charts.gray" : s.color;
     item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(color));
     const parts: string[] = [];

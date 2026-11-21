@@ -1,14 +1,15 @@
 import { statusRank } from "./status";
 import type {
   AccountHealth,
+  AccountKind,
   DisplayMode,
   GroupConfig,
   RunInfo,
   ScopeFilter,
-  WatchedWorkflow,
+  WatchedItem,
   WorkflowState,
 } from "./types";
-import { workflowKey } from "./types";
+import { isPlanEntry, itemKey } from "./types";
 
 /**
  * Pick the newest run per branch. Input runs are expected newest-first
@@ -41,12 +42,15 @@ export function workflowIsMine(state: WorkflowState | undefined, login: string |
 }
 
 /**
- * Visibility of one workflow under the scope filter and the display mode.
- * The two combine (AND): the starred-only display mode hides unstarred
- * workflows regardless of scope, and the scope filter applies on top.
+ * Visibility of one watched entry under the scope filter and the display
+ * mode. The two combine (AND): the starred-only display mode hides
+ * unstarred entries regardless of scope, and the scope filter applies on
+ * top. Applies to workflows and plans alike (a plan is "mine" only when
+ * one of its builds carries the account's login as actor — Bamboo builds
+ * never do, so plans never match the mine scope).
  */
 export function workflowVisible(
-  w: WatchedWorkflow,
+  w: WatchedItem,
   state: WorkflowState | undefined,
   login: string | undefined,
   scope: ScopeFilter,
@@ -65,10 +69,10 @@ export function workflowVisible(
   }
 }
 
-/** A group with its visible workflows; null when nothing in it is visible. */
+/** A group with its visible entries; omitted when nothing in it is visible. */
 export interface VisibleGroup {
   group: GroupConfig;
-  workflows: WatchedWorkflow[];
+  workflows: WatchedItem[];
 }
 
 export function visibleGroups(
@@ -78,6 +82,7 @@ export function visibleGroups(
   logins: Map<string, string | undefined>,
   scope: ScopeFilter,
   mode: DisplayMode,
+  kind: AccountKind,
 ): VisibleGroup[] {
   const out: VisibleGroup[] = [];
   for (const group of groups) {
@@ -85,8 +90,13 @@ export function visibleGroups(
       continue;
     }
     const login = logins.get(accountId);
-    const workflows = group.workflows.filter((w) =>
-      workflowVisible(w, states.get(workflowKey(accountId, w)), login, scope, mode),
+    // Only entries whose shape matches the account kind are live; the
+    // other shape (left over from binding the group to an account of
+    // the other kind) stays stored but inert.
+    const workflows = group.workflows.filter(
+      (w) =>
+        isPlanEntry(w) === (kind === "bamboo") &&
+        workflowVisible(w, states.get(itemKey(accountId, w)), login, scope, mode),
     );
     if (workflows.length > 0) {
       out.push({ group, workflows });
@@ -131,7 +141,7 @@ export function aggregateStatusBar(
       continue;
     }
     for (const w of group.workflows) {
-      const state = states.get(workflowKey(group.accountId, w));
+      const state = states.get(itemKey(group.accountId, w));
       const latest = state?.latest;
       if (!latest) {
         continue;

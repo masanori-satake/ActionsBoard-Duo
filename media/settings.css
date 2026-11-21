@@ -190,6 +190,10 @@ table.workflows input[type="text"] {
   gap: 2px;
   margin: 6px 0;
 }
+.checklist-group {
+  margin: 8px 0 2px;
+  font-size: 0.95em;
+}
 .empty {
   color: var(--vscode-descriptionForeground);
   font-style: italic;

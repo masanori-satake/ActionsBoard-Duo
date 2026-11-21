@@ -19,15 +19,34 @@ export class HttpError extends Error {
 
 const TIMEOUT_MS = 15000;
 
-export async function fetchJson(url: string, token: string | undefined, timeoutMs = TIMEOUT_MS): Promise<FetchResult> {
+export interface FetchOptions {
+  timeoutMs?: number;
+  /**
+   * Plain JSON negotiation for non-GitHub servers (Bamboo): GitHub's
+   * vendor Accept header would make Bamboo's content negotiation fail,
+   * so Bamboo requests ask for plain application/json instead.
+   */
+  bamboo?: boolean;
+}
+
+export async function fetchJson(
+  url: string,
+  token: string | undefined,
+  options: FetchOptions = {},
+): Promise<FetchResult> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
   try {
-    const headers: Record<string, string> = {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "ActionsBoard-Duo",
-    };
+    const headers: Record<string, string> = options.bamboo
+      ? {
+          Accept: "application/json",
+          "User-Agent": "ActionsBoard-Duo",
+        }
+      : {
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "ActionsBoard-Duo",
+        };
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }

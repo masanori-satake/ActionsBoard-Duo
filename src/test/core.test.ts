@@ -3,7 +3,10 @@ import test from "node:test";
 import {
   listRunsUrl,
   normaliseBaseUrl,
+  normalisePagesStatus,
+  pagesDeploymentsUrl,
   parseJobs,
+  parsePagesDeployment,
   parseRuns,
   parseWorkflowName,
   parseWorkflows,
@@ -17,10 +20,18 @@ import {
   showsRecoveryMarker,
   withoutRecoveryMarker,
 } from "../core/liveness";
-import { aggregateStatusBar, isFreshFailure, selectBranchRuns, workflowVisible } from "../core/model";
+import { aggregateStatusBar, isFreshFailure, selectBranchRuns, visibleGroups, workflowVisible } from "../core/model";
+import { moveGroup, moveWatchedItem } from "../core/reorder";
 import { isMutedRun, normaliseStatus } from "../core/status";
-import type { AccountHealth, GroupConfig, RunInfo, WatchedWorkflow, WorkflowState } from "../core/types";
-import { groupDisplayName, workflowDisplayName, workflowKey } from "../core/types";
+import type {
+  AccountHealth,
+  GroupConfig,
+  RunInfo,
+  WatchedItem,
+  WatchedWorkflow,
+  WorkflowState,
+} from "../core/types";
+import { groupDisplayName, isPlanEntry, itemKey, planDisplayName, sameItem, workflowDisplayName, workflowKey } from "../core/types";
 
 // ---------- status normalisation ----------
 
@@ -383,4 +394,118 @@ test("isMutedRun: branch runs other than the latest are muted", () => {
 test("isMutedRun: unknown latest mutes nothing", () => {
   const run = makeRun(1, "dev", "failure", "2026-11-21T01:00:00Z");
   assert.equal(isMutedRun(undefined, run), false);
+});
+
+// ---------- watched entries: workflows and plans (0.2.0) ----------
+
+const planA: WatchedItem = { projectKey: "PROJ", planKey: "PROJ-PLAN", starred: true };
+const planB: WatchedItem = { projectKey: "PROJ", planKey: "PROJ-OTHER" };
+const wfA: WatchedItem = { owner: "me", repo: "app", workflow: "ci.yml", starred: true };
+
+test("isPlanEntry / sameItem: shape decides identity", () => {
+  assert.equal(isPlanEntry(planA), true);
+  assert.equal(isPlanEntry(wfA), false);
+  assert.equal(sameItem(planA, { projectKey: "PROJ", planKey: "PROJ-PLAN" }), true);
+  assert.equal(sameItem(planA, { projectKey: "OTHER", planKey: "PROJ-PLAN" }), false);
+  assert.equal(sameItem(planA, planB), false);
+  assert.equal(sameItem(wfA, { owner: "me", repo: "app", workflow: "ci.yml" }), true);
+  assert.equal(sameItem(wfA, planA), false);
+});
+
+test("itemKey: workflow keys keep the established format; plan keys are distinct", () => {
+  assert.equal(itemKey("acc", wfA), workflowKey("acc", { owner: "me", repo: "app", workflow: "ci.yml" }));
+  assert.equal(itemKey("acc", planA), "acc:plan:PROJ-PLAN");
+});
+
+test("planDisplayName: server name wins, plan key is the fallback", () => {
+  assert.equal(planDisplayName(planA, "My Plan"), "My Plan");
+  assert.equal(planDisplayName(planA, undefined), "PROJ-PLAN");
+  assert.equal(planDisplayName(planA, "  "), "PROJ-PLAN");
+});
+
+test("visibleGroups: entries of the other kind are inert", () => {
+  const groups: GroupConfig[] = [
+    { id: "g1", name: "g", accountId: "acc", workflows: [wfA, planA] },
+  ];
+  const states = new Map<string, WorkflowState>();
+  const logins = new Map<string, string | undefined>();
+  const gh = visibleGroups(groups, "acc", states, logins, "all", "all", "github");
+  assert.deepEqual(gh[0].workflows, [wfA]);
+  const bb = visibleGroups(groups, "acc", states, logins, "all", "all", "bamboo");
+  assert.deepEqual(bb[0].workflows, [planA]);
+});
+
+// ---------- GitHub Pages two-stage tracking (0.2.0) ----------
+
+test("pagesDeploymentsUrl: deployments API under the repo", () => {
+  assert.equal(
+    pagesDeploymentsUrl("https://api.github.com", "me", "site"),
+    "https://api.github.com/repos/me/site/pages/deployments",
+  );
+});
+
+test("normalisePagesStatus: deliverable, error, and everything else deploying", () => {
+  assert.equal(normalisePagesStatus("deliverable"), "deliverable");
+  assert.equal(normalisePagesStatus("deployment_attempt_error"), "error");
+  assert.equal(normalisePagesStatus("error"), "error");
+  assert.equal(normalisePagesStatus("in_progress"), "deploying");
+  assert.equal(normalisePagesStatus("queued"), "deploying");
+});
+
+test("parsePagesDeployment: newest entry wins; unusable payloads keep the old state", () => {
+  const parsed = parsePagesDeployment([
+    { id: 42, status: "in_progress", updated_at: "2026-11-21T09:00:00Z", page_url: "https://me.github.io/site/" },
+    { id: 41, status: "deliverable", updated_at: "2026-11-20T09:00:00Z", page_url: "https://me.github.io/site/" },
+  ]);
+  assert.deepEqual(parsed, {
+    status: "deploying",
+    rawStatus: "in_progress",
+    deploymentId: 42,
+    updatedAt: "2026-11-21T09:00:00Z",
+    pageUrl: "https://me.github.io/site/",
+  });
+  assert.equal(parsePagesDeployment([]), undefined);
+  assert.equal(parsePagesDeployment({}), undefined);
+  assert.equal(parsePagesDeployment([{ id: 1 }]), undefined);
+  assert.equal(parsePagesDeployment(null), undefined);
+});
+
+// ---------- drag reorder (0.2.0) ----------
+
+function reorderGroups(): GroupConfig[] {
+  return [
+    { id: "g1", name: "one", accountId: "acc", workflows: [wfA, planB] },
+    { id: "g2", name: "two", accountId: "acc", workflows: [] },
+    { id: "g3", name: "three", accountId: "other", workflows: [] },
+  ];
+}
+
+test("moveWatchedItem: reorder within a group, insert-before honoured", () => {
+  const groups = reorderGroups();
+  assert.equal(moveWatchedItem(groups, "g1", planB, "g1", wfA), true);
+  assert.deepEqual(groups[0].workflows, [planB, wfA]);
+});
+
+test("moveWatchedItem: move into another group of the same account", () => {
+  const groups = reorderGroups();
+  assert.equal(moveWatchedItem(groups, "g1", wfA, "g2"), true);
+  assert.deepEqual(groups[0].workflows, [planB]);
+  assert.deepEqual(groups[1].workflows, [wfA]);
+});
+
+test("moveWatchedItem: cross-account moves are rejected and change nothing", () => {
+  const groups = reorderGroups();
+  assert.equal(moveWatchedItem(groups, "g1", wfA, "g3"), false);
+  assert.deepEqual(groups[0].workflows, [wfA, planB]);
+  assert.deepEqual(groups[2].workflows, []);
+});
+
+test("moveGroup: reorder groups, missing group is a no-op", () => {
+  const groups = reorderGroups();
+  assert.equal(moveGroup(groups, "g2", "g1"), true);
+  assert.deepEqual(
+    groups.map((g) => g.id),
+    ["g2", "g1", "g3"],
+  );
+  assert.equal(moveGroup(groups, "nope"), false);
 });

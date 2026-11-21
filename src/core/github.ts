@@ -1,5 +1,5 @@
 import { normaliseStatus } from "./status";
-import type { JobInfo, RunInfo } from "./types";
+import type { JobInfo, PagesDeploymentState, PagesStatus, RunInfo } from "./types";
 
 /**
  * Pure GitHub Actions REST helpers: URL building and response interpretation.
@@ -177,3 +177,59 @@ export function parseJobs(json: unknown): JobInfo[] {
     });
 }
 
+
+/** The repository's GitHub Pages deployments (two-stage tracking, stage 2). */
+export function pagesDeploymentsUrl(baseUrl: string, owner: string, repo: string): string {
+  return `${normaliseBaseUrl(baseUrl)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pages/deployments`;
+}
+
+/**
+ * Normalise a Pages deployment status. The deployments API reports
+ * `deliverable` once the site is live; error statuses (e.g.
+ * `deployment_attempt_error`) count as failure; anything else
+ * (queued / in progress / …) is still deploying. The Chrome edition
+ * only distinguished deliverable from everything else — the failure
+ * case is split out here so a broken deployment does not read as
+ * "still working on it" forever.
+ */
+export function normalisePagesStatus(rawStatus: string): PagesStatus {
+  const s = (rawStatus ?? "").toLowerCase();
+  if (s === "deliverable") {
+    return "deliverable";
+  }
+  if (s.includes("error")) {
+    return "error";
+  }
+  return "deploying";
+}
+
+interface RawPagesDeployment {
+  id?: number;
+  status?: string;
+  updated_at?: string;
+  page_url?: string;
+}
+
+/**
+ * Parse the Pages deployments list: the first entry is the newest
+ * deployment. Returns undefined when the payload is not a non-empty
+ * array or the newest entry carries no status, so callers keep the
+ * previously known state (the Chrome edition's behaviour on a failed
+ * or empty fetch).
+ */
+export function parsePagesDeployment(json: unknown): PagesDeploymentState | undefined {
+  if (!Array.isArray(json) || json.length === 0) {
+    return undefined;
+  }
+  const d = json[0] as RawPagesDeployment;
+  if (!d || typeof d.status !== "string" || d.status === "") {
+    return undefined;
+  }
+  return {
+    status: normalisePagesStatus(d.status),
+    rawStatus: d.status,
+    deploymentId: typeof d.id === "number" ? d.id : 0,
+    updatedAt: typeof d.updated_at === "string" ? d.updated_at : "",
+    pageUrl: typeof d.page_url === "string" ? d.page_url : "",
+  };
+}

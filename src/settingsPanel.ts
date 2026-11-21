@@ -11,8 +11,13 @@ const STRINGS = isJa()
       accounts: "アカウント（サーバ）",
       accountName: "名前",
       unnamedAccount: "（名前なしアカウント）",
+      kind: "サービスの種類",
+      kindGitHub: "GitHub (Actions)",
+      kindBamboo: "Bamboo",
       baseUrl: "API ベースURL",
       baseUrlHint: "GitHub.com は https://api.github.com、Enterprise は https://<ホスト>/api/v3",
+      baseUrlBamboo: "サーバの URL",
+      baseUrlBambooHint: "Bamboo サーバのベース URL（例: https://bamboo.example.com）。REST API はこの下の /rest/api/latest を使います",
       token: "アクセストークン (PAT)",
       tokenKept: "保存済み — 変更するときだけ入力",
       tokenNew: "トークンを入力",
@@ -25,6 +30,9 @@ const STRINGS = isJa()
       groupAccount: "アカウント",
       addGroup: "グループを追加",
       workflows: "監視対象ワークフロー",
+      plans: "監視対象プラン",
+      project: "プロジェクト",
+      planKey: "プランキー",
       owner: "owner",
       repo: "repo",
       repository: "リポジトリ",
@@ -32,6 +40,8 @@ const STRINGS = isJa()
       starred: "お気に入り",
       addByDiscovery: "リポジトリから追加",
       listWorkflows: "ワークフロー一覧を取得",
+      addByDiscoveryPlans: "サーバから追加",
+      listPlans: "プラン一覧を取得",
       addSelected: "選択したものを追加",
       polling: "ポーリング",
       pollVisible: "表示中の間隔（秒）",
@@ -55,14 +65,21 @@ const STRINGS = isJa()
       noAccounts: "アカウントがありません。まずアカウントを追加してください。",
       noGroups: "グループがありません。",
       noWorkflows: "ワークフローはまだありません。",
+      noPlans: "プランはまだありません。",
       discoverNeedsRepo: "owner と repo を入力してください。",
+      plansNeedsServer: "先にサーバの URL とトークンを入力してください。",
     }
   : {
       accounts: "Accounts (servers)",
       accountName: "Name",
       unnamedAccount: "(Unnamed account)",
+      kind: "Service",
+      kindGitHub: "GitHub (Actions)",
+      kindBamboo: "Bamboo",
       baseUrl: "API base URL",
       baseUrlHint: "GitHub.com: https://api.github.com · Enterprise: https://<host>/api/v3",
+      baseUrlBamboo: "Server URL",
+      baseUrlBambooHint: "The Bamboo server's base URL (e.g. https://bamboo.example.com). The REST API lives under /rest/api/latest below it.",
       token: "Access token (PAT)",
       tokenKept: "Saved — type only to replace",
       tokenNew: "Enter a token",
@@ -75,6 +92,9 @@ const STRINGS = isJa()
       groupAccount: "Account",
       addGroup: "Add group",
       workflows: "Watched workflows",
+      plans: "Watched plans",
+      project: "Project",
+      planKey: "Plan key",
       owner: "owner",
       repo: "repo",
       repository: "Repository",
@@ -82,6 +102,8 @@ const STRINGS = isJa()
       starred: "Favorite",
       addByDiscovery: "Add from repository",
       listWorkflows: "List workflows",
+      addByDiscoveryPlans: "Add from server",
+      listPlans: "List plans",
       addSelected: "Add selected",
       polling: "Polling",
       pollVisible: "Interval while visible (sec)",
@@ -105,7 +127,9 @@ const STRINGS = isJa()
       noAccounts: "No accounts yet. Add an account first.",
       noGroups: "No groups yet.",
       noWorkflows: "No workflows yet.",
+      noPlans: "No plans yet.",
       discoverNeedsRepo: "Enter owner and repo.",
+      plansNeedsServer: "Enter the server URL and a token first.",
     };
 
 interface InitPayload {
@@ -244,13 +268,16 @@ export class SettingsPanel {
       }
       case "test": {
         const requestId = msg.requestId as string;
-        const baseUrl = normaliseBaseUrl(String(msg.baseUrl ?? ""));
+        const kind = msg.kind === "bamboo" ? ("bamboo" as const) : ("github" as const);
+        // GitHub's normaliser must never touch a Bamboo server URL (it
+        // would append /api/v3); the Bamboo URL builder trims instead.
+        const baseUrl = kind === "bamboo" ? String(msg.baseUrl ?? "") : normaliseBaseUrl(String(msg.baseUrl ?? ""));
         let token = typeof msg.token === "string" && msg.token.trim() !== "" ? msg.token.trim() : undefined;
         if (!token && typeof msg.accountId === "string") {
           token = await this.board.tokens.get(msg.accountId);
         }
         try {
-          const login = await this.board.testAccount(baseUrl, token);
+          const login = await this.board.testAccount(baseUrl, token, kind);
           await this.panel.webview.postMessage({
             type: "testResult",
             requestId,
@@ -308,6 +335,44 @@ export class SettingsPanel {
             groupId,
             error: err instanceof Error ? err.message : String(err),
             workflows: [],
+          });
+        }
+        break;
+      }
+      case "discoverPlans": {
+        const requestId = msg.requestId as string;
+        const groupId = msg.groupId as string;
+        try {
+          const typedToken =
+            typeof msg.token === "string" && msg.token.trim() !== "" ? msg.token.trim() : undefined;
+          // A saved account is used as-is; an unsaved one becomes a
+          // transient Bamboo account from the form values. Without a
+          // typed token, discoverPlans falls back to the stored token.
+          const account = this.board.account(String(msg.accountId ?? "")) ?? {
+            id: String(msg.accountId ?? "transient"),
+            name: "transient",
+            baseUrl: String(msg.baseUrl ?? ""),
+            kind: "bamboo" as const,
+          };
+          const plans = await this.board.discoverPlans(account, typedToken);
+          await this.panel.webview.postMessage({
+            type: "discoveredPlans",
+            requestId,
+            groupId,
+            plans: plans.map((p) => ({
+              projectKey: p.projectKey,
+              projectName: p.projectName,
+              planKey: p.planKey,
+              name: p.name,
+            })),
+          });
+        } catch (err) {
+          await this.panel.webview.postMessage({
+            type: "discoveredPlans",
+            requestId,
+            groupId,
+            error: err instanceof Error ? err.message : String(err),
+            plans: [],
           });
         }
         break;
