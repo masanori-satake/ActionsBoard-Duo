@@ -43,6 +43,8 @@ export interface BoardNode {
   /** Tone for "info" placeholder rows: neutral = no information (gray), warning = a real problem (yellow). */
   infoTone?: "neutral" | "warning";
   jobsLoaded?: boolean;
+  /** Job count once the jobs are loaded; null when the jobs fetch failed. */
+  jobCount?: number | null;
 }
 
 const STATUS_ICON: Record<RunStatus, { icon: string; color: string }> = {
@@ -470,12 +472,26 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
   }
 
   private async jobChildren(node: BoardNode): Promise<BoardNode[]> {
+    await this.ensureJobsLoaded(node);
+    return node.children ?? [];
+  }
+
+  /**
+   * Load a run node's jobs if they are not loaded yet — the same lazy
+   * fetch the tree performs when a run is expanded by hand — and report
+   * how many jobs the run has. Returns null when the fetch failed (the
+   * node then holds the fetch-error placeholder instead of job rows).
+   * The "failures" expansion uses the count to leave failed runs that
+   * have no jobs at all collapsed.
+   */
+  async ensureJobsLoaded(node: BoardNode): Promise<number | null> {
     if (node.jobsLoaded) {
-      return node.children ?? [];
+      return node.jobCount ?? null;
     }
     node.jobsLoaded = true;
     try {
       const jobs = await this.board.fetchJobs(node.account!, node.workflow!, node.run!.id);
+      node.jobCount = jobs.length;
       node.children = jobs.map((job) => ({
         kind: "job" as const,
         id: `job:${node.id}:${job.id}`,
@@ -488,6 +504,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         ];
       }
     } catch (err) {
+      node.jobCount = null;
       const message = err instanceof Error ? err.message : String(err);
       node.children = [
         {
@@ -499,7 +516,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         },
       ];
     }
-    return node.children;
+    return node.jobCount;
   }
 
   getParent(node: BoardNode): BoardNode | undefined {

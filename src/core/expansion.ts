@@ -17,6 +17,21 @@ export type ExpansionMode = "failures" | "running" | "all" | "collapsed" | "manu
  * checks `isCurrent` before each step, stopping as soon as a newer
  * instruction (e.g. switching to "collapsed") has superseded it.
  */
+/**
+ * Whether a failed run belongs in the "failures" expansion set.
+ *
+ * `jobCount` is the number of jobs the run actually has, or null when the
+ * jobs could not be fetched (the count is unknown). A run confirmed to
+ * have no jobs at all — it failed before any job started — is left
+ * collapsed: expanding it would reveal nothing but the "no jobs"
+ * placeholder row. An unknown count keeps the run in the set: a failed
+ * jobs fetch leaves a warning placeholder behind, which is a real
+ * problem worth surfacing, not noise.
+ */
+export function shouldExpandFailedRun(jobCount: number | null): boolean {
+  return jobCount === null || jobCount > 0;
+}
+
 export class ExpansionEpoch {
   private epoch = 0;
 

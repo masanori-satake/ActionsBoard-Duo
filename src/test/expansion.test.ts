@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ExpansionEpoch } from "../core/expansion";
+import { ExpansionEpoch, shouldExpandFailedRun } from "../core/expansion";
 
 // ---------- expansion epoch (superseding in-flight expansion work) ----------
 
@@ -16,6 +16,21 @@ test("ExpansionEpoch: advancing supersedes a loop that captured the old epoch", 
   const runningLoop = gate.advance(); // "expand all" starts
   gate.advance(); // user switches to "collapsed"
   assert.equal(gate.isCurrent(runningLoop), false);
+});
+
+// ---------- failures expansion set (jobless failed runs stay collapsed) ----------
+
+test("shouldExpandFailedRun: a failed run with jobs is expanded", () => {
+  assert.equal(shouldExpandFailedRun(1), true);
+  assert.equal(shouldExpandFailedRun(12), true);
+});
+
+test("shouldExpandFailedRun: a failed run confirmed to have no jobs is skipped", () => {
+  assert.equal(shouldExpandFailedRun(0), false);
+});
+
+test("shouldExpandFailedRun: an unknown job count (jobs fetch failed) keeps the run", () => {
+  assert.equal(shouldExpandFailedRun(null), true);
 });
 
 test("ExpansionEpoch: only the latest generation is current", () => {

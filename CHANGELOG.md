@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.6] - 2026-11-21
+
+### Fixed
+
+- **"Expand failures only" no longer expands failed runs that have no jobs.** A run that failed before any job started was still expanded, revealing only the "No jobs recorded" placeholder row. The expansion now loads the failed runs' jobs first (the same lazy fetch used when a run is expanded by hand) and expands only the runs that actually have jobs; a jobless failed run stays collapsed, its row still showing under the workflow with its failure icon. Expanding such a run by hand still shows the placeholder, and the other expansion modes are unchanged.
+
+### 日本語
+
+- **「エラーのみ展開」で、ジョブのない失敗した実行まで展開されなくなりました。** ジョブが始まる前に失敗した実行も展開され、「ジョブはありません」のプレースホルダだけが見えていました。今は失敗した実行のジョブを先に読み込み（手動で展開したときと同じ遅延取得です）、実際にジョブのある実行だけを展開します。ジョブのない失敗した実行は折りたたまれたまま、ワークフローの下に失敗アイコン付きの行として残ります。手動で展開すればプレースホルダは従来どおり表示され、ほかの展開モードは変わりません。
+
 ## [0.2.5] - 2026-11-21
 
 ### Fixed

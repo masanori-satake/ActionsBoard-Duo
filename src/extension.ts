@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
 import { bambooBrowseUrl } from "./core/bamboo";
-import { ExpansionEpoch, type ExpansionMode } from "./core/expansion";
+import { ExpansionEpoch, shouldExpandFailedRun, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
 import { moveGroup, moveWatchedItem } from "./core/reorder";
 import type { DisplayMode, ScopeFilter, WatchedItem } from "./core/types";
@@ -178,12 +178,33 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!expansionEpoch.isCurrent(epoch)) {
       return; // Superseded while collapsing; the newer instruction owns the tree.
     }
-    const targets =
+    let targets =
       mode === "failures"
         ? provider.runNodesWith(["failure"])
         : mode === "running"
           ? provider.runNodesWith(["failure", "running"])
           : provider.runNodesWith(["failure", "running", "other", "success"]);
+    if (mode === "failures") {
+      // A failed run with no jobs at all (it failed before any job
+      // started) has nothing to show: expanding it reveals only the
+      // "no jobs" placeholder. Load the failed runs' jobs first — the
+      // same lazy fetch the tree uses when a run is expanded by hand,
+      // and failed runs are few — and keep only runs that have jobs.
+      const withJobs: BoardNode[] = [];
+      for (const node of targets) {
+        if (!expansionEpoch.isCurrent(epoch)) {
+          return; // Superseded while loading jobs.
+        }
+        const jobCount = await provider.ensureJobsLoaded(node);
+        if (shouldExpandFailedRun(jobCount)) {
+          withJobs.push(node);
+        }
+      }
+      if (!expansionEpoch.isCurrent(epoch)) {
+        return; // Superseded while loading jobs.
+      }
+      targets = withJobs;
+    }
     guardProgrammatic(2000 + targets.length * 120);
     for (const node of targets) {
       if (!expansionEpoch.isCurrent(epoch)) {
