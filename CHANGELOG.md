@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.13] - 2026-11-21
+
+### Fixed
+
+- **A single failed liveness probe no longer marks a server unreachable.** Right after the editor starts, the network path (proxy/VPN) may not be ready yet, and one failed probe used to flip the account to "unreachable", fire the outage toast, and pause build polling for that account until the next liveness cycle — so a healthy server looked down until a manual Refresh. Entering the unreachable state now takes two consecutive unreachable results: the first failure is held (the displayed state and notifications stay untouched) and an automatic confirmation probe runs about 10 seconds later; only if it also fails is the outage applied and notified. Auth errors (401/403) are deterministic and still apply immediately.
+- **The first liveness cycle after startup no longer fires toasts.** It establishes the baseline — state is applied and persisted, so the tree and the status bar show it exactly as before — but outage, recovery and auth-error notifications are suppressed for that one cycle. Later cycles notify exactly as before.
+
+### 日本語
+
+- **死活確認が1回失敗しただけでは、サーバを「不通」にしないようにしました。** エディタ起動直後はプロキシや VPN などの経路がまだ整っておらず、1回の失敗でアカウントが「不通」になって通知が出て、そのアカウントのビルド取得まで次の死活確認周期まで止まってしまい、正常なサーバが落ちているように見えていました。今は到達不可の結果が2回続いた場合にだけ「不通」へ移ります。最初の失敗は保留され（表示も通知も変わりません）、約10秒後に自動でもう一度確認し、それも失敗した場合にだけ「不通」として適用し通知します。認証エラー（401/403）は確定的な結果なので、従来どおり即時に反映します。
+- **起動直後の最初の死活確認では、通知を出さないようにしました。** 最初の1周期は基準となる状態を記録するだけとし、状態そのものは適用・永続化されるためツリーとステータスバーの表示は従来どおりですが、不通・復旧・認証エラーの通知だけを抑えます。2周期目以降は従来どおり通知します。
+
 ## [0.1.12] - 2026-11-21
 
 ### Changed

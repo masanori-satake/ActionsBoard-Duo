@@ -11,7 +11,7 @@ import {
   userUrl,
   type WorkflowSummary,
 } from "./core/github";
-import { classifyProbe, livenessTransition } from "./core/liveness";
+import { classifyProbe, CONFIRM_PROBE_DELAY_MS, decideProbe, livenessTransition } from "./core/liveness";
 import { isFreshFailure, selectBranchRuns } from "./core/model";
 import type {
   AccountConfig,
@@ -41,6 +41,16 @@ export class Board implements vscode.Disposable {
 
   private buildTimer: NodeJS.Timeout | undefined;
   private livenessTimer: NodeJS.Timeout | undefined;
+  private confirmTimer: NodeJS.Timeout | undefined;
+  /** Consecutive unreachable-classified probes per account (runtime only). */
+  private readonly unreachableStreak = new Map<string, number>();
+  /**
+   * True until the first probe cycle after activation has run. That cycle
+   * only establishes the baseline: state is applied and persisted, but no
+   * liveness toasts fire — at startup the network path may still be
+   * warming up, and a state the user never saw change is not news.
+   */
+  private baselinePending = true;
   private viewVisible = false;
   private polling = false;
   private probing = false;
@@ -163,6 +173,10 @@ export class Board implements vscode.Disposable {
       return;
     }
     this.probing = true;
+    // The first cycle after activation is the silent baseline (see the
+    // baselinePending field): state is applied and persisted, toasts are not.
+    const silent = this.baselinePending;
+    this.baselinePending = false;
     try {
       const settings = readSettings();
       for (const account of this.config.accounts) {
@@ -180,6 +194,18 @@ export class Board implements vscode.Disposable {
           networkFailed = true;
         }
         const next = classifyProbe(status, networkFailed);
+        // A single unreachable result never flips an account into the
+        // unreachable state: it is held until a confirmation probe agrees
+        // (see decideProbe). While held, the recorded health — and with it
+        // the display, the notifications and build polling — is untouched.
+        const decision = decideProbe(prev?.state, next, this.unreachableStreak.get(account.id) ?? 0);
+        this.unreachableStreak.set(account.id, decision.consecutiveUnreachable);
+        if (decision.needsConfirmation) {
+          this.scheduleConfirmationProbe();
+        }
+        if (decision.applyState === undefined) {
+          continue;
+        }
         const transition = livenessTransition(prev?.state, next);
         const now = Date.now();
         const health: AccountHealth = {
@@ -193,13 +219,13 @@ export class Board implements vscode.Disposable {
           health.recoveredAt = prev?.recoveredAt;
         }
         this.health.set(account.id, health);
-        if (transition.becameUnreachable && settings.notifyOnOutage) {
+        if (!silent && transition.becameUnreachable && settings.notifyOnOutage) {
           void vscode.window.showWarningMessage(t("notify.outage", account.name));
         }
-        if (transition.recovered && settings.notifyOnRecovery) {
+        if (!silent && transition.recovered && settings.notifyOnRecovery) {
           void vscode.window.showInformationMessage(t("notify.recovery", account.name));
         }
-        if (transition.authChanged && next === "authError" && settings.notifyOnOutage) {
+        if (!silent && transition.authChanged && next === "authError" && settings.notifyOnOutage) {
           void vscode.window.showWarningMessage(t("notify.authError", account.name));
         }
       }
@@ -208,6 +234,21 @@ export class Board implements vscode.Disposable {
     } finally {
       this.probing = false;
     }
+  }
+
+  /**
+   * Schedules the one-shot confirmation probe that decideProbe asked for.
+   * Board-level, not per account: probeAll covers every account, so one
+   * pending timer is enough no matter how many accounts are being held.
+   */
+  private scheduleConfirmationProbe(): void {
+    if (this.disposed || this.confirmTimer) {
+      return;
+    }
+    this.confirmTimer = setTimeout(() => {
+      this.confirmTimer = undefined;
+      void this.probeAll();
+    }, CONFIRM_PROBE_DELAY_MS);
   }
 
   // ---------- Build polling ----------
@@ -329,6 +370,9 @@ export class Board implements vscode.Disposable {
     }
     if (this.livenessTimer) {
       clearInterval(this.livenessTimer);
+    }
+    if (this.confirmTimer) {
+      clearTimeout(this.confirmTimer);
     }
     this._onDidChange.dispose();
   }

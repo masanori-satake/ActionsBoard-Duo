@@ -9,7 +9,7 @@ import {
   parseWorkflows,
   webBaseFromApi,
 } from "../core/github";
-import { classifyProbe, livenessTransition, showsRecoveryMarker } from "../core/liveness";
+import { classifyProbe, decideProbe, livenessTransition, showsRecoveryMarker } from "../core/liveness";
 import { aggregateStatusBar, isFreshFailure, selectBranchRuns, workflowVisible } from "../core/model";
 import { isMutedRun, normaliseStatus } from "../core/status";
 import type { AccountHealth, GroupConfig, RunInfo, WatchedWorkflow, WorkflowState } from "../core/types";
@@ -207,6 +207,46 @@ test("livenessTransition detects outage and recovery edges", () => {
   assert.equal(livenessTransition("unreachable", "reachable").recovered, true);
   assert.equal(livenessTransition("reachable", "reachable").recovered, false);
   assert.equal(livenessTransition(undefined, "unreachable").becameUnreachable, true);
+});
+
+test("decideProbe holds the first unreachable result pending confirmation", () => {
+  const first = decideProbe("reachable", "unreachable", 0);
+  assert.equal(first.applyState, undefined);
+  assert.equal(first.needsConfirmation, true);
+  assert.equal(first.consecutiveUnreachable, 1);
+  // A brand-new account (no recorded state) is held the same way.
+  const fresh = decideProbe(undefined, "unreachable", 0);
+  assert.equal(fresh.applyState, undefined);
+  assert.equal(fresh.needsConfirmation, true);
+});
+
+test("decideProbe applies unreachable once the confirmation agrees", () => {
+  const second = decideProbe("reachable", "unreachable", 1);
+  assert.equal(second.applyState, "unreachable");
+  assert.equal(second.needsConfirmation, false);
+  assert.equal(second.consecutiveUnreachable, 2);
+});
+
+test("decideProbe keeps an already-unreachable account applied without confirmation", () => {
+  const again = decideProbe("unreachable", "unreachable", 0);
+  assert.equal(again.applyState, "unreachable");
+  assert.equal(again.needsConfirmation, false);
+});
+
+test("decideProbe applies reachable and authError immediately and resets the streak", () => {
+  const back = decideProbe("reachable", "reachable", 1);
+  assert.equal(back.applyState, "reachable");
+  assert.equal(back.consecutiveUnreachable, 0);
+  assert.equal(back.needsConfirmation, false);
+  // A 401/403 is deterministic: no confirmation, even mid-streak.
+  const auth = decideProbe("reachable", "authError", 1);
+  assert.equal(auth.applyState, "authError");
+  assert.equal(auth.consecutiveUnreachable, 0);
+  assert.equal(auth.needsConfirmation, false);
+  // Recovery out of unreachable is a single-probe transition, as before.
+  const recovered = decideProbe("unreachable", "reachable", 5);
+  assert.equal(recovered.applyState, "reachable");
+  assert.equal(recovered.consecutiveUnreachable, 0);
 });
 
 test("recovery marker window", () => {

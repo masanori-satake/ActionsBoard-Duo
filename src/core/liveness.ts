@@ -29,6 +29,55 @@ export interface LivenessTransition {
   authChanged: boolean;
 }
 
+/**
+ * Entering "unreachable" takes this many consecutive unreachable-classified
+ * probes. A single failure is often transient — right after the editor
+ * starts, the proxy/VPN path may not be ready yet — so the first failure is
+ * held (display and notifications untouched) until a confirmation probe
+ * agrees. Auth errors are deterministic and never go through this.
+ */
+export const UNREACHABLE_CONFIRMATIONS = 2;
+
+/** Delay before the automatic confirmation probe after a first failure. */
+export const CONFIRM_PROBE_DELAY_MS = 10_000;
+
+export interface ProbeDecision {
+  /**
+   * The state to record for the account this round. Undefined means the
+   * result is being held pending confirmation: leave the recorded health
+   * (and therefore the display and the notifications) untouched.
+   */
+  applyState: LivenessState | undefined;
+  /** Consecutive unreachable-classified probes, updated for this round. */
+  consecutiveUnreachable: number;
+  /** True when a confirmation probe should be scheduled. */
+  needsConfirmation: boolean;
+}
+
+/**
+ * Decide what one classified probe result does to an account, given its
+ * recorded state and its current run of consecutive unreachable results.
+ */
+export function decideProbe(
+  prev: LivenessState | undefined,
+  next: LivenessState,
+  consecutiveUnreachable: number,
+): ProbeDecision {
+  if (next !== "unreachable") {
+    // Reachable and authError apply immediately; either resets the streak.
+    return { applyState: next, consecutiveUnreachable: 0, needsConfirmation: false };
+  }
+  if (prev === "unreachable") {
+    // Already in the unreachable state: nothing to confirm.
+    return { applyState: next, consecutiveUnreachable, needsConfirmation: false };
+  }
+  const streak = consecutiveUnreachable + 1;
+  if (streak >= UNREACHABLE_CONFIRMATIONS) {
+    return { applyState: next, consecutiveUnreachable: streak, needsConfirmation: false };
+  }
+  return { applyState: undefined, consecutiveUnreachable: streak, needsConfirmation: true };
+}
+
 export function livenessTransition(prev: LivenessState | undefined, next: LivenessState): LivenessTransition {
   return {
     next,
