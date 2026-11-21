@@ -108,14 +108,14 @@ export function pagesText(status: PagesStatus): string {
   }
 }
 
-/** ★ = starred （興味がある）, 👤 = mine （自分の）. Both may appear. */
+/** ★ = starred （興味がある）, ♟ = mine （自分の）. Both may appear. */
 export function marksFor(starred: boolean, mine: boolean): string {
   const marks: string[] = [];
   if (starred) {
     marks.push("★");
   }
   if (mine) {
-    marks.push("👤");
+    marks.push("♟");
   }
   return marks.join(" ");
 }

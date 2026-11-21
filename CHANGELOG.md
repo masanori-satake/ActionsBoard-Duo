@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.4] - 2026-11-21
+
+### Changed
+
+- **The "mine" mark is now a chess pawn (♟) instead of the 👤 emoji.** The mark that flags workflows whose newest runs include one started by your account was the literal 👤 emoji, so it alone rendered in colour among the otherwise monochrome symbols. It is now the filled chess pawn ♟ (U+265F), a monochrome person-shaped silhouette that sits naturally next to the filled ★. The mark's meaning and the places it appears (tree rows and the settings legend) are unchanged.
+
+### 日本語
+
+- **「自分の」印を、絵文字の 👤 からチェスのポーン ♟ に変えました。** 最新の実行に自分のアカウントが起こしたものが含まれることを示す印は、文字としての絵文字 👤 が入っていたため、単色の記号の中でここだけ色付きで描画されていました。今は塗りつぶしのチェスのポーン ♟（U+265F）です。人の形をした単色のシルエットで、塗りつぶしの ★ とも並びが合います。印の意味と、出る場所（ツリーの行と設定の凡例）は変わりません。
+
 ## [0.2.3] - 2026-11-21
 
 ### Changed
