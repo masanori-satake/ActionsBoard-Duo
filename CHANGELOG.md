@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.15] - 2026-11-21
+
+### Fixed
+
+- **Switching to "collapsed" now stops an expansion that is still running.** Applying an expansion mode reveals its target runs one by one, and that loop used to run to completion no matter what: switching to the collapsed mode mid-expansion collapsed the tree once, but the still-running loop kept revealing and re-expanding nodes behind it, so the tree grew again. Expansion work is now generation-based — every new expansion instruction supersedes the previous one, the running loop checks before each reveal whether it is still the current instruction and stops immediately when it is not, and switching to collapsed takes effect at once. The expansion modes, the nodes each mode expands, and the reveal order are unchanged.
+
+### 日本語
+
+- **展開の途中で「すべてを折りたたむ」に切り替えても展開が止まらない問題を直しました。** 展開モードの適用は対象のランを1つずつ開いていくため時間がかかりますが、その処理が最後まで止まりませんでした。途中で折りたたむモードに切り替えるとツリーは一度畳まれても、裏で続いている展開処理がノードを開き直し続けて、ツリーがまた伸びていきました。今は展開の指示ごとに世代が進み、実行中の処理は次のノードを開く前に自分が最新の指示かどうかを確認して、そうでなければ即座に止まります。折りたたむモードへの切り替えはその場で効きます。展開モードの種類、各モードが開く対象、開く順序は変わりません。
+
+
 ## [0.1.14] - 2026-11-21
 
 ### Fixed

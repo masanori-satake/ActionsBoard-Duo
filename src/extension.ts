@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
-import { nextExpansionMode, type ExpansionMode } from "./core/expansion";
+import { ExpansionEpoch, nextExpansionMode, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
 import type { DisplayMode, ScopeFilter } from "./core/types";
 import { t } from "./i18n";
@@ -31,6 +31,10 @@ export function activate(context: vscode.ExtensionContext): void {
   let expansionMode: ExpansionMode = "failures";
   let programmaticUntil = 0;
   let initialExpansionDone = false;
+  // Generation counter for expansion work: a new instruction supersedes
+  // any reveal loop still running, and disposal ends the last generation.
+  const expansionEpoch = new ExpansionEpoch();
+  context.subscriptions.push({ dispose: () => expansionEpoch.advance() });
 
   const syncViewChrome = () => {
     void vscode.commands.executeCommand("setContext", "actionsBoardDuo.scope", provider.scope);
@@ -67,6 +71,10 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   const applyExpansion = async (mode: ExpansionMode) => {
+    // Every new instruction supersedes expansion work still in flight:
+    // advancing the epoch makes a running reveal loop stop at its next
+    // step instead of re-expanding nodes behind the newer instruction.
+    const epoch = expansionEpoch.advance();
     expansionMode = mode;
     if (mode === "collapsed") {
       await collapseAllInternal();
@@ -74,6 +82,9 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     await collapseAllInternal();
+    if (!expansionEpoch.isCurrent(epoch)) {
+      return; // Superseded while collapsing; the newer instruction owns the tree.
+    }
     const targets =
       mode === "failures"
         ? provider.runNodesWith(["failure"])
@@ -82,13 +93,18 @@ export function activate(context: vscode.ExtensionContext): void {
           : provider.runNodesWith(["failure", "running", "other", "success"]);
     guardProgrammatic(2000 + targets.length * 120);
     for (const node of targets) {
+      if (!expansionEpoch.isCurrent(epoch)) {
+        return; // Superseded mid-expansion (e.g. switched to collapsed).
+      }
       try {
         await treeView.reveal(node, { expand: true, focus: false, select: false });
       } catch {
         // Node may have been rebuilt by a refresh in the meantime; skip it.
       }
     }
-    syncViewChrome();
+    if (expansionEpoch.isCurrent(epoch)) {
+      syncViewChrome();
+    }
   };
 
   const maybeApplyInitialExpansion = () => {
