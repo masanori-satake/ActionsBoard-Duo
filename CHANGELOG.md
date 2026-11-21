@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.7] - 2026-11-21
+
+### Changed
+
+- **The star toggle moved from an inline row button to the right-click menu.** The ★ toggle on workflow and plan rows was an inline button, and VS Code shows inline buttons on the selected row as well as the hovered one, so a star button sat on rows the pointer was nowhere near. "Add Star / Remove Star" now lives only in the row's right-click menu. The ★ and ♟ marks in the rows still show the state, and the settings form's star checkboxes are unchanged.
+
+### 日本語
+
+- **星の付け外しを、行のボタンから右クリックメニューに移しました。** ワークフローとプランの行にあった星ボタンはインラインボタンで、VS Code の仕様によりホバーした行だけでなく選択中の行にも表示され、ポインタのない行にまで星が出ていました。「星を付ける／星を外す」は行の右クリックメニューだけに移しました。行の ★ と ♟ の印（状態表示）と、設定フォームの星チェックは変わりません。
+
 ## [0.2.6] - 2026-11-21
 
 ### Fixed
