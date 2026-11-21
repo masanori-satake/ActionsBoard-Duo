@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.5] - 2026-11-21
+
+### Fixed
+
+- **No more bogus "auth error" right after saving settings.** Pressing Save wrote the configuration before the tokens, and the resulting configuration-change event triggered an immediate liveness/build check that still used the old (or missing) token — so the tree briefly showed an authentication error and fetch errors, as if the settings had failed. Tokens are now written first, and the check that the configuration change triggers is held back while a save is in progress; the first check after a save runs once, after every write has landed, with the correct token. Editing settings.json directly still triggers an immediate check, as before.
+
+### 日本語
+
+- **設定を保存した直後に「認証エラー」と出る問題を直しました。** 保存時に設定がトークンより先に書かれ、その設定変更をきっかけに走る死活確認・ビルド取得が、古い（または未保存の）トークンのままで実行されてしまい、設定に失敗したような印象になっていました。トークンを先に書くようにし、保存の最中は設定変更に伴う即時チェックを抑えることで、保存後の初回チェックは、すべての書き込みが終わった後に正しいトークンで1回だけ走るようになりました。settings.json を直接編集した場合の即時チェックは従来どおりです。
+
 ## [0.1.4] - 2026-11-21
 
 ### Changed

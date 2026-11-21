@@ -214,15 +214,26 @@ export class SettingsPanel {
         const settings = msg.settings as BoardSettings;
         const tokens = (msg.tokens ?? {}) as Record<string, string>;
         const removed = (msg.removedAccountIds ?? []) as string[];
-        await writeConfig(config);
-        await writeSettings(settings);
-        for (const [accountId, token] of Object.entries(tokens)) {
-          if (token.trim() !== "") {
-            await this.board.tokens.set(accountId, token.trim());
+        // Tokens go first: writing the config fires a configuration-change
+        // event whose reload must never check with a stale token. A token
+        // stored for an account whose config write then fails is harmless.
+        // beginSave suppresses reloadConfig's immediate poll/probe for the
+        // whole write sequence, so the probe/poll below — after every
+        // write has landed — is the single first check.
+        this.board.beginSave();
+        try {
+          for (const [accountId, token] of Object.entries(tokens)) {
+            if (token.trim() !== "") {
+              await this.board.tokens.set(accountId, token.trim());
+            }
           }
-        }
-        for (const accountId of removed) {
-          await this.board.tokens.delete(accountId);
+          for (const accountId of removed) {
+            await this.board.tokens.delete(accountId);
+          }
+          await writeConfig(config);
+          await writeSettings(settings);
+        } finally {
+          this.board.endSave();
         }
         void vscode.window.showInformationMessage(t("msg.saved"));
         await this.postInit();

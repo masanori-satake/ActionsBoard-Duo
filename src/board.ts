@@ -43,6 +43,7 @@ export class Board implements vscode.Disposable {
   private viewVisible = false;
   private polling = false;
   private probing = false;
+  private saveInProgress = false;
   private disposed = false;
 
   constructor(
@@ -55,12 +56,32 @@ export class Board implements vscode.Disposable {
     }
   }
 
+  /**
+   * Marks a settings-form save as in progress (see endSave). While a save
+   * is running, reloadConfig still refreshes config, timers and the tree,
+   * but does not fire its immediate poll/probe: the configuration writes
+   * land one by one and the token writes may not have completed yet, so an
+   * early check could run with a stale token and persist a bogus authError.
+   * The save handler runs the single first check itself once every write
+   * has landed.
+   */
+  beginSave(): void {
+    this.saveInProgress = true;
+  }
+
+  /** Clears the mark set by beginSave. Always call from a finally block. */
+  endSave(): void {
+    this.saveInProgress = false;
+  }
+
   reloadConfig(): void {
     this.config = readConfig();
     this.restartTimers();
     this._onDidChange.fire();
-    void this.pollAll();
-    void this.probeAll();
+    if (!this.saveInProgress) {
+      void this.pollAll();
+      void this.probeAll();
+    }
   }
 
   setViewVisible(visible: boolean): void {
