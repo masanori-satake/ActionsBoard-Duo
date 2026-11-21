@@ -206,12 +206,14 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
         item.contextValue = "job";
         const s = STATUS_ICON[job.status];
         item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(s.color));
-        const parts = [statusText(job.status)];
+        // The icon already carries the status; the word lives in the tooltip.
+        // The description keeps only the failed step, when there is one.
+        const tooltipParts = [statusText(job.status)];
         if (job.failedStep) {
-          parts.push(t("tree.failedStep", job.failedStep));
+          tooltipParts.push(t("tree.failedStep", job.failedStep));
+          item.description = t("tree.failedStep", job.failedStep);
         }
-        item.description = parts.join(" · ");
-        item.tooltip = `${job.name}\n${parts.join(" · ")}`;
+        item.tooltip = `${job.name}\n${tooltipParts.join(" · ")}`;
         if (job.htmlUrl) {
           item.command = { command: "actionsBoardDuo.openRun", title: "", arguments: [job.htmlUrl] };
         }
@@ -289,7 +291,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     } else if (state?.latest) {
       const s = STATUS_ICON[state.latest.status];
       item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(s.color));
-      parts.push(statusText(state.latest.status));
+      // No status word here: the icon says it, and the word is in the tooltip.
       parts.push(state.latest.branch);
       parts.push(relativeTime(state.latest.updatedAt));
     } else {
@@ -321,7 +323,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     item.contextValue = "run";
     const s = STATUS_ICON[run.status];
     item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(s.color));
-    const parts = [statusText(run.status)];
+    const parts: string[] = [];
     if (run.title) {
       parts.push(run.title);
     }
@@ -330,7 +332,8 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     }
     parts.push(relativeTime(run.updatedAt));
     item.description = parts.join(" · ");
-    item.tooltip = `#${run.runNumber} ${run.title}\n${parts.join(" · ")}`;
+    // The status word moves to the tooltip; the icon carries it in the row.
+    item.tooltip = `#${run.runNumber} ${run.title}\n${[statusText(run.status), ...parts].join(" · ")}`;
     return item;
   }
 

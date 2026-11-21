@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.6] - 2026-11-21
+
+### Changed
+
+- **Tree rows no longer repeat the status as a word.** Each workflow, run and job row already shows a status icon, and the same meaning written out next to it (a green check plus "Success") only ate into the narrow panel width. The descriptions now keep just the information the icon cannot say — marks, branch and time on workflow rows; title, actor and time on run rows; the failed step on job rows — and the status word stays one hover away in the tooltip. Account rows keep their "Unreachable" / "Auth error" texts: those describe exceptional states, not the icon.
+
+### 日本語
+
+- **ツリーの行で、状態を言葉で繰り返さないようにしました。** ワークフロー・ラン・ジョブの各行には状態アイコンがあり、その横に「成功」など同じ意味の言葉が並ぶのは、狭いパネルの幅を圧迫するだけでした。説明欄にはアイコンでは伝わらない情報だけを残し（ワークフロー行はマーク・ブランチ・時刻、ラン行はタイトル・実行者・時刻、ジョブ行は失敗したステップ）、状態の言葉はツールチップで確認できる形に寄せました。アカウント行の「不通」「認証エラー」は例外状態の説明なので、そのまま残しています。
+
 ## [0.1.5] - 2026-11-21
 
 ### Fixed
