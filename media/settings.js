@@ -544,6 +544,7 @@
         `+ ${S.addAccount}`,
       ),
       h("h2", null, S.groups),
+      h("div", { class: "hint" }, S.reorderHint),
       ...(config.groups.length === 0 ? [h("div", { class: "empty" }, S.noGroups)] : config.groups.map(groupCard)),
       h(
         "button",

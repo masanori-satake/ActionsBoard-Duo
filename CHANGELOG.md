@@ -2,6 +2,10 @@
 
 ## [1.0.2] - 2026-11-21
 
+### Added
+
+- **A reorder hint where you need it.** The settings form's Groups section now says that reordering is done by dragging in the board tree, and the README's Settings section says the same. The form itself has no reorder controls; the tree has always supported dragging (groups within the same account, workflows also between groups).
+
 ### Fixed
 
 - **Natural Japanese for the scope label.** The title-bar scope command for the "mine" scope read 「スコープ: 自分の」; it now reads 「スコープ: 自分」.
@@ -9,6 +13,7 @@
 ### 日本語
 
 - **スコープ表示の日本語を自然にしました。** タイトルバーのスコープ切り替えで「自分の」と表示されていた箇所を「スコープ: 自分」に直しました。
+- **並べ替えの案内を足しました。** 設定フォームの「グループ」の見出しの下と、README の「設定」に、並べ替えはボードのツリーでドラッグして行う旨を書きました。フォーム自体に並べ替えの操作はなく、ツリーのドラッグ（グループは同じアカウント内、ワークフローは別グループへの移動も可）が従来から使えます。
 
 ## [1.0.1] - 2026-11-21
 

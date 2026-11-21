@@ -73,6 +73,8 @@ Builds are fetched every 30 seconds while the board is visible and every 300 sec
 
 Accounts and groups are stored in your user settings (`actionsBoardDuo.accounts`, `actionsBoardDuo.groups`), so you can read, edit, and back them up as JSON. Tokens are not in there — they are kept in SecretStorage only.
 
+The settings form has no reorder controls of its own. To change the order of groups or watched items, drag them in the board tree (groups within the same account; workflows can also be moved into another group). The order is saved to the same settings, so the form shows it too.
+
 <a id="en-requirements"></a>
 ### 📋 Requirements
 
@@ -159,6 +161,8 @@ MIT — see [LICENSE](LICENSE).
 ビルドの取得は、盤面の表示中が30秒ごと、非表示の間が300秒ごとです。サーバの死活確認は120秒ごとです。いずれも設定画面か、設定 JSON（`actionsBoardDuo.pollIntervalVisibleSeconds`、`actionsBoardDuo.pollIntervalHiddenSeconds`、`actionsBoardDuo.livenessIntervalSeconds`）で変更できます。
 
 アカウントとグループはユーザー設定（`actionsBoardDuo.accounts`、`actionsBoardDuo.groups`）に保存されるので、JSON のまま読んだり、編集したり、バックアップしたりできます。トークンはそこには入っていません。SecretStorage のみに置きます。
+
+並べ替えは設定フォームではなく、ボードのツリーでドラッグして行います（グループは同じアカウント内、ワークフローは別グループへの移動もできます）。順序は同じ設定に保存され、フォームにもその順序で出ます。
 
 <a id="ja-requirements"></a>
 ### 📋 動作環境
