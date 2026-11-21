@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2] - 2026-11-21
+
+### Changed
+
+- **The display toggle now uses a filter icon instead of a star.** The title bar showed two star icons in a row — the scope button "Starred" and the starred-only display toggle — which was easy to misread. The scope star stays; the display toggle is now a filter icon (an outline filter while everything is shown, a filled filter while only starred items are shown), so the two controls no longer look alike.
+
+### 日本語
+
+- **表示トグルのアイコンを、星ではなくフィルターにしました。** タイトルバーには星のアイコンが2つ並んでいました（スコープの「興味がある」と、お気に入りだけを表示する表示トグル）ため、見間違えやすい状態でした。スコープ側の星はそのままに、表示トグルをフィルターのアイコンに変えました（全体を表示しているときは輪郭だけのフィルター、お気に入りだけを表示しているときは塗りつぶしのフィルター）。2つの操作が同じ見た目ではなくなります。
+
 ## [0.2.1] - 2026-11-21
 
 ### Changed
