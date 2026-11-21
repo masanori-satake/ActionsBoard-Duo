@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.3] - 2026-11-21
+
+### Changed
+
+- **Repository version alignment (no functional changes).** The reorder hint for 1.0.2 was committed after the 1.0.2 version bump, which tripped this repository's version-bump check in CI. The hint itself shipped in the published 1.0.2; this bump simply keeps the repository version ahead of the published one.
+
+### 日本語
+
+- **リポジトリの版の整合を取りました（機能の変更はありません）。** 1.0.2 の並べ替えの案内は、1.0.2 への版上げの後にコミットされたため、CI の版バンプチェックに触れました。案内自体は公開された 1.0.2 に含まれています。この版上げは、リポジトリの版を公開済みの版より先に保つためのものです。
+
 ## [1.0.2] - 2026-11-21
 
 ### Added
