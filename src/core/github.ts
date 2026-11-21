@@ -89,7 +89,10 @@ export function listJobsUrl(baseUrl: string, owner: string, repo: string, runId:
 
 export function workflowPageUrl(owner: string, repo: string, workflow: string, webBaseUrl?: string): string {
   const web = webBaseFromApi(normaliseBaseUrl(webBaseUrl ?? DEFAULT_BASE_URL));
-  return `${web}/${owner}/${repo}/actions/workflows/${workflow}`;
+  // The segments come from user settings; encode them like the API URL
+  // builders do, so a stray "/" or "?" in a stored value cannot reshape
+  // the page URL.
+  return `${web}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(workflow)}`;
 }
 
 /** Derive the web origin from an API base URL (github.com or GHES). */
@@ -216,9 +219,15 @@ export function parseJobs(json: unknown): JobInfo[] {
   return raw
     .filter((j) => typeof j?.id === "number")
     .map((j) => {
-      const failedStep = Array.isArray(j.steps)
-        ? j.steps.find((s) => (s.conclusion ?? "") === "failure" || (s.conclusion ?? "") === "timed_out")?.name
+      // Step elements are read defensively: a null step in the payload
+      // must not throw the whole jobs parse away.
+      const failed = Array.isArray(j.steps)
+        ? j.steps.find((s) => {
+            const c = s?.conclusion ?? "";
+            return c === "failure" || c === "timed_out";
+          })
         : undefined;
+      const failedStep = failed && typeof failed.name === "string" ? failed.name : undefined;
       return {
         id: j.id as number,
         name: typeof j.name === "string" ? j.name : "",
@@ -237,6 +246,31 @@ export function parseJobs(json: unknown): JobInfo[] {
 /** The repository's GitHub Pages deployments (two-stage tracking, stage 2). */
 export function pagesDeploymentsUrl(baseUrl: string, owner: string, repo: string): string {
   return `${normaliseBaseUrl(baseUrl)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pages/deployments`;
+}
+
+/**
+ * Minimum spacing between Pages deployment checks for one repository
+ * while its newest run is unchanged: a deployment takes a while, and
+ * re-asking every 30 s poll cycle only adds load. A new run id always
+ * re-checks immediately.
+ */
+export const PAGES_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+
+/** The last Pages check performed for one repository. */
+export interface PagesCheckRecord {
+  runId: number;
+  at: number;
+}
+
+/** Should this repository's Pages deployments be checked now? */
+export function shouldCheckPages(prev: PagesCheckRecord | undefined, runId: number, now: number): boolean {
+  if (!prev) {
+    return true;
+  }
+  if (prev.runId !== runId) {
+    return true;
+  }
+  return now - prev.at >= PAGES_CHECK_INTERVAL_MS;
 }
 
 /**

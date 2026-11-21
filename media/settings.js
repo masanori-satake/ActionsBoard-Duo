@@ -10,6 +10,7 @@
   let removedAccountIds = [];
   let discovered = {}; // groupId -> [{ name, file }]
   let discoveredPlans = {}; // groupId -> [{ projectKey, projectName, planKey, name }]
+  let discoveredPlansTruncated = {}; // groupId -> the plan list hit the cap
   let discoveryGroupId = null; // destination group of the shared discovery panel
   let discoverySelect = null; // the destination <select> element, while it is shown
   let accountSelects = []; // the account <select> elements in the group cards
@@ -368,6 +369,7 @@
               return;
             }
             discoveredPlans[group.id] = msg.plans;
+            discoveredPlansTruncated[group.id] = msg.truncated === true;
             renderDiscoveredPlans(group, dList);
           };
           vscode.postMessage({
@@ -432,6 +434,9 @@
       `+ ${S.addSelected}`,
     );
     children.push(addBtn);
+    if (discoveredPlansTruncated[group.id]) {
+      children.push(h("div", { class: "hint" }, S.plansTruncated));
+    }
     container.replaceChildren(...children);
   }
 
@@ -571,6 +576,7 @@
         checkSetting(S.notifyFailure, settings.notifyOnFailure, (v) => (settings.notifyOnFailure = v)),
         checkSetting(S.notifyOutage, settings.notifyOnOutage, (v) => (settings.notifyOnOutage = v)),
         checkSetting(S.notifyRecovery, settings.notifyOnRecovery, (v) => (settings.notifyOnRecovery = v)),
+        checkSetting(S.notifyAuthError, settings.notifyOnAuthError, (v) => (settings.notifyOnAuthError = v)),
       ),
       h("div", { class: "row" }, labeled(S.notifyScope, scopeSelect)),
       h("h2", null, S.legend),
@@ -591,6 +597,10 @@
   });
   saveBtn.addEventListener("click", () => {
     if (!state) return;
+    // 保存しました is shown only when the host answers saveResult with
+    // ok — a failed save must never claim success.
+    saveStatus.textContent = "";
+    saveStatus.className = "";
     vscode.postMessage({
       type: "save",
       config: JSON.parse(JSON.stringify(state.config)),
@@ -599,8 +609,6 @@
       removedAccountIds,
     });
     removedAccountIds = [];
-    saveStatus.textContent = S.saved;
-    setTimeout(() => (saveStatus.textContent = ""), 3000);
   });
 
   window.addEventListener("message", (event) => {
@@ -611,8 +619,18 @@
       removedAccountIds = [];
       discovered = {};
       discoveredPlans = {};
+      discoveredPlansTruncated = {};
       discoveryGroupId = null;
       render();
+    } else if (msg.type === "saveResult") {
+      if (msg.ok) {
+        saveStatus.textContent = S.saved;
+        saveStatus.className = "";
+        setTimeout(() => (saveStatus.textContent = ""), 3000);
+      } else {
+        saveStatus.textContent = msg.error || "";
+        saveStatus.className = "result-ng";
+      }
     } else if (msg.type === "testResult" || msg.type === "discovered" || msg.type === "discoveredPlans") {
       const cb = pending[msg.requestId];
       if (cb) {

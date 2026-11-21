@@ -4,6 +4,7 @@ import {
   bambooBrowseUrl,
   bambooCurrentUserUrl,
   bambooInfoUrl,
+  bambooPlanCount,
   bambooPlansUrl,
   bambooProjectsUrl,
   bambooResultDetailUrl,
@@ -34,7 +35,7 @@ test("bamboo URL builders follow the documented REST layout", () => {
   assert.equal(bambooCurrentUserUrl(BASE), "https://bamboo.example.com/rest/api/latest/currentUser");
   assert.equal(
     bambooPlansUrl(BASE),
-    "https://bamboo.example.com/rest/api/latest/plan?expand=plans.plan&max-results=500",
+    "https://bamboo.example.com/rest/api/latest/plan?expand=plans.plan&max-results=500&start-index=0",
   );
   assert.equal(bambooProjectsUrl(BASE), "https://bamboo.example.com/rest/api/latest/project?expand=projects.project&max-results=500");
   assert.equal(
@@ -279,4 +280,39 @@ test("parseBambooStages: flattens stage results into jobs", () => {
   assert.equal(jobs[1].status, "failure");
   assert.deepEqual(parseBambooStages({}), []);
   assert.deepEqual(parseBambooStages({ stages: { stage: [] } }), []);
+});
+
+test("parseBambooResults: undeterminable ids get distinct negative fallbacks (L8)", () => {
+  const payload = {
+    results: {
+      result: [
+        { buildState: "Failed", lifeCycleState: "Finished" },
+        { buildState: "Successful", lifeCycleState: "Finished" },
+        { id: 42, buildState: "Successful", lifeCycleState: "Finished" },
+      ],
+    },
+  };
+  const runs = parseBambooResults(payload, BASE);
+  assert.equal(runs.length, 3);
+  assert.ok(runs[0].id < 0 && runs[1].id < 0);
+  assert.notEqual(runs[0].id, runs[1].id);
+  assert.equal(runs[2].id, 42);
+});
+
+test("bambooPlansUrl: paging parameters (E6)", () => {
+  assert.equal(
+    bambooPlansUrl(BASE),
+    "https://bamboo.example.com/rest/api/latest/plan?expand=plans.plan&max-results=500&start-index=0",
+  );
+  assert.equal(
+    bambooPlansUrl(BASE, 1000),
+    "https://bamboo.example.com/rest/api/latest/plan?expand=plans.plan&max-results=500&start-index=1000",
+  );
+});
+
+test("bambooPlanCount: counts raw entries before parsing drops any (E6)", () => {
+  assert.equal(bambooPlanCount(PLANS_PAYLOAD), PLANS_PAYLOAD.plans.plan.length);
+  assert.equal(bambooPlanCount({ plans: { plan: { key: "P-A" } } }), 1);
+  assert.equal(bambooPlanCount({}), 0);
+  assert.equal(bambooPlanCount(null), 0);
 });

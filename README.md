@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v0.2.8-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v0.3.0-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -20,7 +20,7 @@ The board is a tree in the Activity Bar: **account (server) → group → workfl
 
 The name ends in "-Duo" because the extension works together with your CI servers. (The "-Solo" series works entirely on its own, locally.) The connection is read-only: the extension polls the servers you configure and never changes anything on them. Tokens are stored only in SecretStorage, never in settings files.
 
-Current version: **v0.2.8**
+Current version: **v0.3.0**
 
 ---
 
@@ -32,7 +32,7 @@ Current version: **v0.2.8**
 - **Status bar summary** — the counts of success, failure, and running across everything you watch, always visible. Servers that cannot be reached are counted separately, never as build failures. Click the item to open the board: when something has failed or a server cannot be reached, the board opens with the failures expanded; otherwise the click just opens it.
 - **Filters** — show All, only Mine (runs your account started), or only Starred. A separate toggle shows starred entries only and hides everything else, groups included.
 - **Expansion buttons** — open failures only, failures and running, everything, or collapse everything. Each button keeps one fixed icon whatever the current state: a plus in a square for Expand All, a minus in a square for Collapse All.
-- **Marks** — ★ marks entries you star (toggle it from the row's right-click menu, or in the settings form). A person mark appears on a GitHub workflow when its newest runs include one your account started. Bamboo builds do not say who started them, so plans never get the person mark.
+- **Marks** — ★ marks entries you star (toggle it from the row's right-click menu, or in the settings form). The ♟ mark appears on a GitHub workflow when its newest runs include one your account started. Bamboo builds do not say who started them, so plans never get the ♟ mark.
 - **GitHub Pages** — when a workflow's newest run succeeds and its repository publishes a Pages site, the row also shows the deployment state (deploying / deployed / deployment failed), so you can follow the site update after the green run.
 - **Server health** — each account is checked on its own schedule, separate from build polling. The board tells apart "reachable", "authentication error", and "unreachable". While a server is unreachable, its rows say so and show when it last answered; when it answers again, a recovery mark appears for a while.
 - **Notifications** — for build failures, server outages, and recoveries. Outage and recovery can each be turned off. Failure notifications can be limited to all, mine, or starred.
@@ -64,7 +64,7 @@ Current version: **v0.2.8**
 - **Expand Failures Only / Expand Running Too / Expand All / Collapse All** — the expansion buttons. Their icons do not change with the current state.
 - **Open Workflow Page in Browser / Open Plan in Browser** — on a row's right-click menu; opens that workflow or plan on its server.
 - **Add Star / Remove Star** — on a row's right-click menu; toggles the ★ mark on that workflow or plan.
-- **Open Settings (Accounts, Groups, Workflows)** — the one-screen settings form.
+- **Open Settings (Accounts, Groups, Watched Items)** — the one-screen settings form.
 
 <a id="en-settings"></a>
 ### 🔧 Settings
@@ -103,11 +103,11 @@ MIT — see [LICENSE](LICENSE).
 
 **ActionsBoard-Duo** は、CI が順調に回っているかを一目で確かめるための拡張機能です。GitHub Actions と Bamboo（Data Center）に対応します。
 
-盤面はアクティビティバーのツリーです: **アカウント（サーバ）→ グループ → ワークフロー／プラン → 実行・ビルド → ジョブ**。普段は開く必要はありません。ステータスバーには、監視中の最新の実行について、成功・失敗・実行中の件数が常に出ます。ビルドが失敗したとき、サーバに届かなくなったとき、復旧したときは、通知で知らせます。
+盤面はアクティビティバーのツリーです: **アカウント（サーバ）→ グループ → ワークフロー／プラン → 実行・ビルド → ジョブ**。普段は開く必要はありません。ステータスバーには、監視中の最新の実行について、成功・失敗・実行中の件数が常に出ます。ビルドが失敗したとき、サーバに到達できなくなったとき、復旧したときは、通知で知らせます。
 
 名前の「-Duo」は、CI サーバと組になって働くという意味です（「-Solo」シリーズは単体で、完全ローカルに動きます）。サーバへは読み取りだけです。設定したサーバを定期的に取得しに行くだけで、サーバ側のものを変更することはありません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v0.2.8**
+現在のバージョン: **v0.3.0**
 
 ---
 
@@ -116,12 +116,12 @@ MIT — see [LICENSE](LICENSE).
 
 - **2つの CI サービス** — GitHub Actions（github.com と GitHub Enterprise Server）と Bamboo（Data Center）を、同じ盤面に並べて見られます。
 - **一目で読めるツリー** — アカウント → グループ → ワークフロー／プラン → 実行 → ジョブ（マトリクスの内訳を含む）。行のアイコンが状態を示し、ワークフローの色は最新の実行で決まります。
-- **ステータスバーの要約** — 監視中の成功・失敗・実行中の件数が常に出ます。届かないサーバは別の件数として数え、ビルド失敗には数えません。クリックすると盤面が開きます。失敗や届かないサーバがあるときは、失敗したものを展開した状態で開きます。
-- **フィルター** — 「すべて」「自分の（自分のアカウントが起こした実行）」「興味がある」の切り替えと、星を付けたものだけを表示する切り替え（それ以外はグループごと隠れます）。
+- **ステータスバーの要約** — 監視中の成功・失敗・実行中の件数が常に出ます。到達できないサーバは別の件数として数え、ビルド失敗には数えません。クリックすると盤面が開きます。失敗や到達できないサーバがあるときは、失敗したものを展開した状態で開きます。
+- **フィルター** — 「すべて」「自分の（自分のアカウントが起こした実行）」「お気に入り」の切り替えと、星を付けたものだけを表示する切り替え（それ以外はグループごと隠れます）。
 - **展開ボタン** — エラーだけ開く、実行中も開く、すべて開く、すべて畳む。アイコンは状態によって変わりません（すべて開くは四角に「+」、すべて畳むは四角に「−」）。
-- **印** — ★ は星を付けたもの（行の右クリックメニューか、設定フォームで付け外しできます）。人の印は、GitHub のワークフローで、最新の実行に自分のアカウントが起こしたものが含まれるときに付きます。Bamboo のビルドには「誰が起こしたか」の情報がないため、プランに人の印は付きません。
+- **印** — ★ は星を付けたもの（行の右クリックメニューか、設定フォームで付け外しできます）。♟ の印は、GitHub のワークフローで、最新の実行に自分のアカウントが起こしたものが含まれるときに付きます。Bamboo のビルドには「誰が起こしたか」の情報がないため、プランに ♟ の印は付きません。
 - **GitHub Pages** — ワークフローの最新の実行が成功し、そのリポジトリが Pages を公開している場合、行にデプロイの状態（デプロイ中／デプロイ完了／デプロイ失敗）も出ます。緑になったあと、サイトの更新が終わるまでを見届けられます。
-- **サーバの死活** — アカウントごとに、ビルド取得とは別の周期で確認します。「到達可」「認証エラー」「到達不可」を区別します。届かない間は、行にその旨と、最後に応答した時刻が出ます。復旧すると、しばらくの間、復旧の印が出ます。
+- **サーバの死活** — アカウントごとに、ビルド取得とは別の周期で確認します。「到達可」「認証エラー」「到達不可」を区別します。到達できない間は、行にその旨と、最後に応答した時刻が出ます。復旧すると、しばらくの間、復旧の印が出ます。
 - **通知** — ビルド失敗、サーバの不通、復旧。不通と復旧は個別にオフにできます。失敗通知は「すべて／自分だけ／星つきだけ」に範囲を絞れます。
 - **グループ** — リポジトリやプロジェクトを跨いで、目的別に束ねられます（リリース用、担当サービス用など）。
 - **ドラッグで並べ替え** — ワークフローやプランをドラッグして、順序を変えたり、同じアカウントの別グループへ移したりできます。グループ自体の並べ替えもできます。順序は設定に保存され、設定フォームでも同じ順序で出ます。
@@ -146,12 +146,12 @@ MIT — see [LICENSE](LICENSE).
 ### ⌨️ コマンド
 
 - **更新** — ビルドとサーバの死活を今すぐ取得します。
-- **スコープ: すべて／スコープ: 自分の／スコープ: 興味がある** — スコープフィルター。状態ごとにタイトルバーのボタンがあり、現在の状態は塗りつぶしで示されます。
-- **興味があるものだけ表示／全体を表示** — 表示モードの切り替え。
+- **スコープ: すべて／スコープ: 自分の／スコープ: お気に入り** — スコープフィルター。状態ごとにタイトルバーのボタンがあり、現在の状態は塗りつぶしで示されます。
+- **お気に入りのみ表示／全体を表示** — 表示モードの切り替え。
 - **エラーのみ展開／実行中も展開／すべて展開／すべて畳む** — 展開ボタン。アイコンは状態によって変わりません。
 - **ワークフローのページをブラウザで開く／プランをブラウザで開く** — 行の右クリックメニューから、そのワークフローやプランのページをサーバ側で開きます。
 - **星を付ける／星を外す** — 行の右クリックメニューから、そのワークフローやプランの ★ を付け外しします。
-- **設定を開く（アカウント・グループ・ワークフロー）** — 一画面の設定フォーム。
+- **設定を開く（アカウント・グループ・監視対象）** — 一画面の設定フォーム。
 
 <a id="ja-settings"></a>
 ### 🔧 設定

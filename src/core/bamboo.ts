@@ -29,8 +29,14 @@ export function bambooCurrentUserUrl(baseUrl: string): string {
   return restUrl(baseUrl, "currentUser");
 }
 
-export function bambooPlansUrl(baseUrl: string): string {
-  return `${restUrl(baseUrl, "plan")}?expand=plans.plan&max-results=500`;
+/** One page of the plan list; discovery pages through these (see discoverPlans). */
+export const BAMBOO_PLANS_PAGE_SIZE = 500;
+
+/** Discovery gives up after this many plans rather than paging forever. */
+export const BAMBOO_PLANS_CAP = 2000;
+
+export function bambooPlansUrl(baseUrl: string, startIndex = 0, maxResults = BAMBOO_PLANS_PAGE_SIZE): string {
+  return `${restUrl(baseUrl, "plan")}?expand=plans.plan&max-results=${maxResults}&start-index=${startIndex}`;
 }
 
 export function bambooProjectsUrl(baseUrl: string): string {
@@ -153,6 +159,10 @@ function resultBranch(r: RawBambooResult): string {
 export function parseBambooResults(json: unknown, baseUrl: string): RunInfo[] {
   const raw = asArray((json as { results?: { result?: unknown } })?.results?.result);
   const runs: RunInfo[] = [];
+  // Results whose id cannot be determined get distinct negative
+  // fallback ids: a shared 0 would collide in tree node ids and in the
+  // jobsByRun map, merging unrelated builds into one.
+  let fallbackSeq = 0;
   for (const item of raw) {
     const r = item as RawBambooResult;
     if (!r || typeof r !== "object") {
@@ -163,7 +173,7 @@ export function parseBambooResults(json: unknown, baseUrl: string): RunInfo[] {
     const started = str(r.buildStartedTime);
     const completed = str(r.buildCompletedTime);
     runs.push({
-      id: num(r.id) ?? trailingNumber(key) ?? 0,
+      id: num(r.id) ?? trailingNumber(key) ?? --fallbackSeq,
       key: key !== "" ? key : undefined,
       name: str(r.plan?.name),
       branch: resultBranch(r),
@@ -215,6 +225,16 @@ interface RawBambooPlan {
   projectName?: string;
   project?: { key?: string; name?: string };
   enabled?: boolean;
+}
+
+/**
+ * How many plan entries a plan-list payload carries, before parsing
+ * drops the unusable ones. Discovery paging compares this against the
+ * requested page size to tell a full page (there may be more) from a
+ * short one (the list is exhausted).
+ */
+export function bambooPlanCount(json: unknown): number {
+  return asArray((json as { plans?: { plan?: unknown } })?.plans?.plan).length;
 }
 
 /** Parse the plan list (`GET /plan` with `expand=plans.plan`), sorted by project then plan key. */

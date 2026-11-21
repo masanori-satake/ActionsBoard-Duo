@@ -7,6 +7,7 @@ import { moveGroup, moveWatchedItem } from "./core/reorder";
 import type { DisplayMode, ScopeFilter, WatchedItem } from "./core/types";
 import { isPlanEntry, sameItem } from "./core/types";
 import { SettingsPanel } from "./settingsPanel";
+import { openExternalUrl } from "./openUrl";
 import { BoardStatusBar } from "./statusBar";
 import { readConfig, TokenStore, writeConfig } from "./store";
 import { BoardTreeProvider, type BoardNode } from "./treeProvider";
@@ -353,9 +354,7 @@ export function activate(context: vscode.ExtensionContext): void {
   register("actionsBoardDuo.removeStar", async (node?: BoardNode) => setStarred(node, false));
 
   register("actionsBoardDuo.openRun", async (url?: string) => {
-    if (url) {
-      await vscode.env.openExternal(vscode.Uri.parse(url));
-    }
+    await openExternalUrl(url);
   });
 
   register("actionsBoardDuo.openWorkflowPage", async (node?: BoardNode) => {
@@ -363,7 +362,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     const url = workflowPageUrl(node.workflow.owner, node.workflow.repo, node.workflow.workflow, node.account.baseUrl);
-    await vscode.env.openExternal(vscode.Uri.parse(url));
+    await openExternalUrl(url);
   });
 
   register("actionsBoardDuo.openPlanPage", async (node?: BoardNode) => {
@@ -371,7 +370,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     const url = bambooBrowseUrl(node.account.baseUrl, node.workflow.planKey);
-    await vscode.env.openExternal(vscode.Uri.parse(url));
+    await openExternalUrl(url);
   });
 
   refreshUi();

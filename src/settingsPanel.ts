@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { listWorkflowsUrl, normaliseBaseUrl, parseRepoUrl, parseWorkflows } from "./core/github";
+import { isHttpUrlString } from "./core/url";
 import { fetchJson } from "./net";
 import type { AppConfig } from "./core/types";
 import { isJa, t } from "./i18n";
@@ -12,13 +13,13 @@ const STRINGS = isJa()
       accountName: "名前",
       unnamedAccount: "（名前なしアカウント）",
       kind: "サービスの種類",
-      kindGitHub: "GitHub (Actions)",
+      kindGitHub: "GitHub（Actions）",
       kindBamboo: "Bamboo",
       baseUrl: "API ベースURL",
       baseUrlHint: "GitHub.com は https://api.github.com、Enterprise は https://<ホスト>/api/v3",
       baseUrlBamboo: "サーバの URL",
       baseUrlBambooHint: "Bamboo サーバのベース URL（例: https://bamboo.example.com）。REST API はこの下の /rest/api/latest を使います",
-      token: "アクセストークン (PAT)",
+      token: "アクセストークン（PAT）",
       tokenKept: "保存済み — 変更するときだけ入力",
       tokenNew: "トークンを入力",
       test: "接続テスト",
@@ -49,14 +50,15 @@ const STRINGS = isJa()
       notifyFailure: "ビルド失敗を通知",
       notifyOutage: "サービス不通を通知",
       notifyRecovery: "サービス復旧を通知",
+      notifyAuthError: "認証エラーを通知",
       notifyScope: "失敗通知の範囲",
       scopeAll: "すべて",
-      scopeMine: "自分が実行したジョブだけ",
-      scopeStarred: "星を付けたワークフローだけ",
+      scopeMine: "自分が実行したものだけ",
+      scopeStarred: "お気に入りだけ",
       legend: "印の凡例",
       legendStar: "★ = お気に入り",
       legendMine: "♟ = 自身が実行",
-      legendStatus: "状態: ✓ 成功 · ✗ 失敗 · 実行中 · 不通（サーバに到達できない。失敗には数えません）",
+      legendStatus: "状態: 成功 · 失敗 · 実行中 · 不通（サーバに到達できない状態。失敗には数えません）",
       save: "保存（適用）",
       cancel: "キャンセル",
       saved: "保存しました",
@@ -70,6 +72,8 @@ const STRINGS = isJa()
       discoverBadUrl:
         "リポジトリを読み取れませんでした。リポジトリの URL（https://github.com/owner/repo のような形）を貼り付けてください。",
       plansNeedsServer: "先にサーバの URL とトークンを入力してください。",
+      plansTruncated: "プランが多いため、一覧は上限の 2,000 件で打ち切られています。",
+      invalidUrl: "URL が正しくありません。http:// または https:// で始まる URL を入力してください。",
     }
   : {
       accounts: "Accounts (servers)",
@@ -113,14 +117,15 @@ const STRINGS = isJa()
       notifyFailure: "Notify build failures",
       notifyOutage: "Notify when a service becomes unreachable",
       notifyRecovery: "Notify when a service recovers",
+      notifyAuthError: "Notify on authentication errors",
       notifyScope: "Failure notification scope",
       scopeAll: "All",
-      scopeMine: "Only jobs I ran",
-      scopeStarred: "Only starred workflows",
+      scopeMine: "Only runs I started",
+      scopeStarred: "Only favorites",
       legend: "Legend",
       legendStar: "★ = Favorite",
       legendMine: "♟ = Run by you",
-      legendStatus: "Status: ✓ success · ✗ failure · running · unreachable (server down; never counted as a failure)",
+      legendStatus: "Status: success · failure · running · unreachable (the server cannot be reached; never counted as a failure)",
       save: "Save (Apply)",
       cancel: "Cancel",
       saved: "Saved",
@@ -133,6 +138,8 @@ const STRINGS = isJa()
       repoUrlPlaceholder: "https://github.com/owner/repo",
       discoverBadUrl: "Could not read that as a repository. Paste the repository URL (like https://github.com/owner/repo).",
       plansNeedsServer: "Enter the server URL and a token first.",
+      plansTruncated: "There are more plans than the list can show; it was truncated at the 2,000-plan cap.",
+      invalidUrl: "That URL is not usable. Enter a URL starting with http:// or https://.",
     };
 
 interface InitPayload {
@@ -248,7 +255,11 @@ export class SettingsPanel {
         // beginSave suppresses reloadConfig's immediate poll/probe for the
         // whole write sequence, so the probe/poll below — after every
         // write has landed — is the single first check.
+        // The form shows 保存しました only when this save actually
+        // landed: the outcome goes back as a saveResult message, and a
+        // failed save reports its error instead of claiming success.
         this.board.beginSave();
+        let saveError: string | undefined;
         try {
           for (const [accountId, token] of Object.entries(tokens)) {
             if (token.trim() !== "") {
@@ -260,9 +271,16 @@ export class SettingsPanel {
           }
           await writeConfig(config);
           await writeSettings(settings);
+        } catch (err) {
+          saveError = err instanceof Error ? err.message : String(err);
         } finally {
           this.board.endSave();
         }
+        if (saveError !== undefined) {
+          await this.panel.webview.postMessage({ type: "saveResult", ok: false, error: saveError });
+          break;
+        }
+        await this.panel.webview.postMessage({ type: "saveResult", ok: true });
         void vscode.window.showInformationMessage(t("msg.saved"));
         await this.postInit();
         await this.board.probeAll();
@@ -275,6 +293,19 @@ export class SettingsPanel {
         // GitHub's normaliser must never touch a Bamboo server URL (it
         // would append /api/v3); the Bamboo URL builder trims instead.
         const baseUrl = kind === "bamboo" ? String(msg.baseUrl ?? "") : normaliseBaseUrl(String(msg.baseUrl ?? ""));
+        // Only http/https URLs are usable at all. Name that plainly
+        // instead of letting the request fail with a generic error.
+        // (GitHub's empty input normalises to the api.github.com
+        // default above, so it never lands here.)
+        if (!isHttpUrlString(baseUrl)) {
+          await this.panel.webview.postMessage({
+            type: "testResult",
+            requestId,
+            ok: false,
+            message: STRINGS.invalidUrl,
+          });
+          break;
+        }
         let token = typeof msg.token === "string" && msg.token.trim() !== "" ? msg.token.trim() : undefined;
         if (!token && typeof msg.accountId === "string") {
           token = await this.board.tokens.get(msg.accountId);
@@ -370,11 +401,12 @@ export class SettingsPanel {
             baseUrl: String(msg.baseUrl ?? ""),
             kind: "bamboo" as const,
           };
-          const plans = await this.board.discoverPlans(account, typedToken);
+          const { plans, truncated } = await this.board.discoverPlans(account, typedToken);
           await this.panel.webview.postMessage({
             type: "discoveredPlans",
             requestId,
             groupId,
+            truncated,
             plans: plans.map((p) => ({
               projectKey: p.projectKey,
               projectName: p.projectName,

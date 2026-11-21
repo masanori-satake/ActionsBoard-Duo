@@ -1,16 +1,15 @@
 import * as vscode from "vscode";
+import { clampIntervalSeconds, sanitiseConfig, toNotificationScope } from "./core/config";
 import type { AccountHealth, AppConfig } from "./core/types";
 
 const SECTION = "actionsBoardDuo";
 
 export function readConfig(): AppConfig {
   const cfg = vscode.workspace.getConfiguration(SECTION);
-  const accounts = cfg.get<AppConfig["accounts"]>("accounts", []);
-  const groups = cfg.get<AppConfig["groups"]>("groups", []);
-  return {
-    accounts: Array.isArray(accounts) ? accounts : [],
-    groups: Array.isArray(groups) ? groups : [],
-  };
+  // settings.json is user-editable: everything is validated element-wise
+  // (see core/config), so one malformed entry can neither throw nor
+  // blank the whole board.
+  return sanitiseConfig({ accounts: cfg.get("accounts", []), groups: cfg.get("groups", []) });
 }
 
 export async function writeConfig(config: AppConfig): Promise<void> {
@@ -26,19 +25,23 @@ export interface BoardSettings {
   notifyOnFailure: boolean;
   notifyOnOutage: boolean;
   notifyOnRecovery: boolean;
+  notifyOnAuthError: boolean;
   notificationScope: "all" | "mine" | "starred";
 }
 
 export function readSettings(): BoardSettings {
   const cfg = vscode.workspace.getConfiguration(SECTION);
   return {
-    pollVisibleSec: Math.max(10, cfg.get<number>("pollIntervalVisibleSeconds", 30)),
-    pollHiddenSec: Math.max(30, cfg.get<number>("pollIntervalHiddenSeconds", 300)),
-    livenessSec: Math.max(30, cfg.get<number>("livenessIntervalSeconds", 120)),
+    // Intervals are clamped at both ends: a hand-edited settings.json
+    // can neither spin the poller nor park it indefinitely.
+    pollVisibleSec: clampIntervalSeconds(cfg.get("pollIntervalVisibleSeconds", 30), 10, 3600, 30),
+    pollHiddenSec: clampIntervalSeconds(cfg.get("pollIntervalHiddenSeconds", 300), 30, 86400, 300),
+    livenessSec: clampIntervalSeconds(cfg.get("livenessIntervalSeconds", 120), 30, 86400, 120),
     notifyOnFailure: cfg.get<boolean>("notifyOnFailure", true),
     notifyOnOutage: cfg.get<boolean>("notifyOnOutage", true),
     notifyOnRecovery: cfg.get<boolean>("notifyOnRecovery", true),
-    notificationScope: cfg.get<"all" | "mine" | "starred">("notificationScope", "all"),
+    notifyOnAuthError: cfg.get<boolean>("notifyOnAuthError", true),
+    notificationScope: toNotificationScope(cfg.get("notificationScope", "all")),
   };
 }
 
@@ -51,6 +54,7 @@ export async function writeSettings(patch: Partial<BoardSettings>): Promise<void
   if (patch.notifyOnFailure !== undefined) await cfg.update("notifyOnFailure", patch.notifyOnFailure, target);
   if (patch.notifyOnOutage !== undefined) await cfg.update("notifyOnOutage", patch.notifyOnOutage, target);
   if (patch.notifyOnRecovery !== undefined) await cfg.update("notifyOnRecovery", patch.notifyOnRecovery, target);
+  if (patch.notifyOnAuthError !== undefined) await cfg.update("notifyOnAuthError", patch.notifyOnAuthError, target);
   if (patch.notificationScope !== undefined) await cfg.update("notificationScope", patch.notificationScope, target);
 }
 

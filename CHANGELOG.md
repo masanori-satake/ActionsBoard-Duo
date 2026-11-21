@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.3.0] - 2026-11-21
+
+### Security
+
+- **Redirects can no longer carry the token to another host.** Redirects are now followed manually (at most 5 hops): the Authorization header is re-sent only while the target stays on the same host as the previous URL, and is dropped for good after any cross-host hop.
+- **Response bodies are capped at 10 MB.** A declared Content-Length over the cap fails the request up front, and the byte count is enforced while the body streams in; an oversized response surfaces like any other failed fetch.
+- **Only http/https URLs are usable, and only http/https links are opened.** A stored base URL that does not parse or uses another scheme is coerced to empty when the configuration is read (the settings form's connection test names an unusable URL plainly instead of failing generically), and every open-in-browser path — run rows, the failure notification's button, workflow and plan pages — goes through one shared guard.
+- **Stored settings are validated on read.** Malformed account/group entries are coerced or dropped element-wise, duplicate account ids keep the first entry, and totals are capped (50 accounts, 100 groups, 500 watched entries), so a hand-edited settings.json can neither throw inside the tree nor blank the whole board.
+
+### Changed
+
+- **The tree tooltips' mark legend is now as simple as the settings form's.** It reads "Marks: ★ = Favorite · ♟ = Run by you" in both languages, with the pawn glyph instead of a description in words.
+- **Authentication errors have their own notification setting.** "Notify on authentication errors" (on by default) replaces riding on the outage notification setting; existing settings without the key behave as on.
+- **Wording was unified on "favorite" / 「お気に入り」.** The scope and display-toggle titles and the notification-scope label use it everywhere, and the scope's "mine" option now reads "Only runs I started" / 「自分が実行したものだけ」, matching the run-level check it performs. The settings legend's status line dropped its ✓/✗ glyphs, Japanese parentheses in the form are full-width throughout, and the package description was replaced.
+- **Build polling fetches with bounded concurrency (6 in flight)** instead of strictly one entry at a time; the per-entry dedupe and the account skip rules are unchanged, and the resulting states are the same.
+- **GitHub Pages checks are spaced out.** While a repository's newest run is unchanged, its Pages deployment is re-checked at most every 5 minutes; a new run always checks immediately.
+- **A failed settings save now says so.** The form shows "Saved" only after the host confirms the write; a failure shows the error in place of the success message.
+
+### Fixed
+
+- **Deleted accounts no longer linger as phantom outages.** Reloading the configuration prunes health, workflow states and Pages states to the accounts and entries the config still has, and health is persisted only after pruning — no stale unreachable/auth-error counts in the status bar, and nothing resurrects on restart.
+- **Accounts in an authentication-error state are skipped by build polling**, like unreachable ones; liveness probing continues and detects recovery.
+- **HTTP 429 backs build polling off** until the server's Retry-After (capped at 15 minutes) or, without one, until the next liveness cycle would run. Liveness still classifies 429 as reachable.
+- **Polling intervals are clamped at both ends** — visible 10–3600 s, hidden 30–86400 s, liveness 30–86400 s, with matching maximums in the settings schema; a non-numeric value falls back to the default. An unknown notification scope reads as "all".
+- **Bamboo plan discovery pages through the whole plan list** (500 per page, up to 2,000 plans); when the cap cuts the list, the checklist says so.
+- **Parser robustness:** null elements inside a job's steps no longer throw; Bamboo results whose id cannot be determined get distinct fallback ids instead of all collapsing to 0 (which collided in tree node ids and the jobs map); workflow page URLs now encode their owner/repo/workflow segments like the API URLs do.
+
+### 日本語
+
+### セキュリティ
+
+- **リダイレクトでトークンが別のホストへ渡らなくなりました。** リダイレクトは自動追従に頼らず、手動で最大5回まで追います。Authorization ヘッダは、転送先が直前の URL と同じホストのときだけ再送し、別ホストへ移った時点でそのリクエストでは二度と送りません。
+- **応答本文に 10 MB の上限を設けました。** Content-Length が上限を超える応答は最初から失敗とし、読み取り中もバイト数を数えて超えた時点で中断します。大きすぎる応答は、通常の取得失敗と同じに扱われます。
+- **使える URL と開くリンクを http/https だけにしました。** 保存されたベース URL が解釈できない、または http/https 以外のスキームの場合、設定の読み取り時に空へ寄せます（設定フォームの接続テストでは、汎用的な失敗ではなく URL が使えない旨を明示します）。ブラウザで開く経路（実行の行、失敗通知のボタン、ワークフロー／プランのページ）はすべて1つの共通ガードを通ります。
+- **保存された設定を、読み取り時に検証するようになりました。** アカウント／グループの要素は1つずつ検証し、不正なものは型を寄せるか落とします。重複したアカウント id は最初の要素を優先し、件数にも上限（アカウント50、グループ100、監視対象は合計500）を設けたので、settings.json を手で編集してもツリーの中で例外が出たり、盤面全体が空になったりしません。
+
+### 変更
+
+- **ツリーのツールチップの凡例を、設定フォームと同じシンプルな形にしました。** 両言語とも「★ = お気に入り · ♟ = 自身が実行」の形で、人の印はポーンの記号で示します。
+- **認証エラーの通知が独立した設定になりました。** 「認証エラーを通知」（既定はオン）が、不通通知への便乗に代わります。キーのない既存の設定ではオンとして扱います。
+- **文言を「お気に入り」に統一しました。** スコープと表示切替のタイトル、通知範囲の選択肢がすべて「お気に入り」表記になり、通知範囲の「自分の」選択肢は、実装どおりラン単位の判定に合わせて「自分が実行したものだけ」と言い換えました。設定の凡例の状態行からは ✓/✗ の記号を外し、フォームの日本語の括弧は全角に統一し、パッケージの説明文を差し替えました。
+- **ビルド取得を上限付きの並行実行（同時6件）にしました。** 従来の1件ずつの直列取得をやめました。要素ごとの重複排除と、アカウント単位のスキップ規則は従来どおりで、結果の状態も同じです。
+- **GitHub Pages の確認間隔を空けました。** リポジトリの最新の実行が変わらない間は、Pages デプロイの再確認は最大でも5分に1回です。新しい実行が出れば即座に確認します。
+- **設定の保存が失敗したら、その旨が出るようになりました。** フォームの「保存しました」は、ホスト側が書き込みの成功を返したときだけ表示し、失敗時は代わりにエラー文を表示します。
+
+### 修正
+
+- **削除したアカウントが「不通の亡霊」として残らなくなりました。** 設定の再読み込み時に、死活・ワークフローの状態・Pages の状態を、現在の設定に残っているものだけへ剪定し、死活の永続化は剪定の後に行います。ステータスバーに古い不通／認証エラーの件数が残らず、再起動で復活することもありません。
+- **認証エラー状態のアカウントを、ビルド取得でもスキップするようになりました**（到達不可と同じ扱い）。死活確認は継続し、復旧を検知します。
+- **HTTP 429 の間はビルド取得を休止します。** 休止はサーバの Retry-After（上限15分）まで、無ければ次の死活確認周期までです。死活確認では 429 を従来どおり「到達可」と分類します。
+- **ポーリング間隔を両端でクランプしました**（表示中 10〜3600 秒、非表示 30〜86400 秒、死活確認 30〜86400 秒）。設定スキーマにも対応する最大値を入れ、数値でない値は既定値に戻します。不明な通知範囲は「すべて」として読みます。
+- **Bamboo のプラン発見が、全プランをページングして取得するようになりました**（1ページ500件、上限2,000件）。上限で打ち切られた場合は、チェックリストにその旨の注記が出ます。
+- **パーサの頑健性を上げました。** ジョブのステップ内の null 要素で例外が出なくなりました。id を特定できない Bamboo の結果には、すべて 0 に潰れないよう互いに異なるフォールバック id を付けます（ツリーのノード id とジョブの対応付けの衝突を防ぎます）。ワークフローのページ URL は、API の URL と同じく各要素をエンコードします。
+
 ## [0.2.8] - 2026-11-21
 
 ### Changed

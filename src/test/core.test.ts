@@ -11,7 +11,9 @@ import {
   parseRuns,
   parseWorkflowName,
   parseWorkflows,
+  shouldCheckPages,
   webBaseFromApi,
+  workflowPageUrl,
 } from "../core/github";
 import {
   classifyProbe,
@@ -545,4 +547,48 @@ test("moveGroup: reorder groups, missing group is a no-op", () => {
     ["g2", "g1", "g3"],
   );
   assert.equal(moveGroup(groups, "nope"), false);
+});
+
+test("parseJobs tolerates null elements in steps (L7)", () => {
+  const jobs = parseJobs({
+    jobs: [
+      {
+        id: 9,
+        name: "build",
+        status: "completed",
+        conclusion: "failure",
+        steps: [null, { name: "Test", status: "completed", conclusion: "failure", number: 2 }, null],
+      },
+      {
+        id: 10,
+        name: "lint",
+        status: "completed",
+        conclusion: "success",
+        steps: [null],
+      },
+    ],
+  });
+  assert.equal(jobs.length, 2);
+  assert.equal(jobs[0].failedStep, "Test");
+  assert.equal(jobs[1].failedStep, undefined);
+});
+
+test("workflowPageUrl encodes its segments (M4)", () => {
+  assert.equal(
+    workflowPageUrl("my org", "re?po", "ci/daily.yml"),
+    "https://github.com/my%20org/re%3Fpo/actions/workflows/ci%2Fdaily.yml",
+  );
+  assert.equal(workflowPageUrl("o", "r", "ci.yml"), "https://github.com/o/r/actions/workflows/ci.yml");
+});
+
+test("shouldCheckPages: first check and new runs always check; unchanged runs wait (P2)", () => {
+  const now = 10 * 60 * 1000;
+  assert.equal(shouldCheckPages(undefined, 5, now), true);
+  assert.equal(shouldCheckPages({ runId: 5, at: now - 1000 }, 5, now), false);
+  assert.equal(shouldCheckPages({ runId: 5, at: now - 1000 }, 6, now), true);
+  assert.equal(shouldCheckPages({ runId: 5, at: now - 5 * 60 * 1000 }, 5, now), true);
+});
+
+test("classifyProbe: 429 is reachable, not an outage (E2)", () => {
+  assert.equal(classifyProbe(429, false), "reachable");
 });

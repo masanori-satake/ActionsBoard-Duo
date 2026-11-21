@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import {
   bambooCurrentUserUrl,
+  bambooPlanCount,
   bambooPlansUrl,
   bambooProjectsUrl,
   bambooResultDetailUrl,
   bambooResultsUrl,
+  BAMBOO_PLANS_CAP,
+  BAMBOO_PLANS_PAGE_SIZE,
   parseBambooCurrentUser,
   parseBambooPlanName,
   parseBambooPlans,
@@ -24,7 +27,9 @@ import {
   parseRuns,
   parseWorkflows,
   parseWorkflowName,
+  shouldCheckPages,
   userUrl,
+  type PagesCheckRecord,
   type WorkflowSummary,
 } from "./core/github";
 import {
@@ -36,6 +41,8 @@ import {
   withoutRecoveryMarker,
 } from "./core/liveness";
 import { isFreshFailure, selectBranchRuns } from "./core/model";
+import { mapPool } from "./core/pool";
+import { isRateLimited, rateLimitResetAt } from "./core/ratelimit";
 import type {
   AccountConfig,
   AccountHealth,
@@ -58,8 +65,12 @@ import {
   workflowDisplayName,
 } from "./core/types";
 import { t } from "./i18n";
-import { fetchJson } from "./net";
+import { fetchJson, type FetchResult } from "./net";
+import { openExternalUrl } from "./openUrl";
 import { readConfig, readHealth, readSettings, TokenStore, writeHealth } from "./store";
+
+/** Build polling fetches at most this many watched entries at once. */
+const POLL_CONCURRENCY = 6;
 
 /**
  * The board engine: build polling, liveness probing, state and notifications.
@@ -76,6 +87,10 @@ export class Board implements vscode.Disposable {
   readonly health = new Map<string, AccountHealth>();
   /** Latest GitHub Pages deployment per repository (accountId:owner/repo). */
   readonly pagesStates = new Map<string, PagesDeploymentState>();
+  /** Last Pages check per repository, for the re-check cadence (P2). */
+  private readonly pagesChecked = new Map<string, PagesCheckRecord>();
+  /** Build polling pauses per account until this time after a 429 (E2). */
+  private readonly rateLimitedUntil = new Map<string, number>();
 
   private buildTimer: NodeJS.Timeout | undefined;
   private livenessTimer: NodeJS.Timeout | undefined;
@@ -127,12 +142,65 @@ export class Board implements vscode.Disposable {
 
   reloadConfig(): void {
     this.config = readConfig();
+    this.pruneToConfig();
     this.restartTimers();
     this._onDidChange.fire();
     if (!this.saveInProgress) {
       void this.pollAll();
       void this.probeAll();
     }
+  }
+
+  /**
+   * Drop runtime state that belongs to accounts or watched entries the
+   * current config no longer has. Without this, a deleted account would
+   * leave a phantom 不通/認証エラー in the status bar counts — and in
+   * the persisted health, resurrecting on every restart. Health is
+   * persisted only after pruning, so what is stored matches the board.
+   */
+  private pruneToConfig(): void {
+    const accountIds = new Set(this.config.accounts.map((a) => a.id));
+    for (const id of [...this.health.keys()]) {
+      if (!accountIds.has(id)) {
+        this.health.delete(id);
+      }
+    }
+    for (const id of [...this.unreachableStreak.keys()]) {
+      if (!accountIds.has(id)) {
+        this.unreachableStreak.delete(id);
+      }
+    }
+    for (const id of [...this.rateLimitedUntil.keys()]) {
+      if (!accountIds.has(id)) {
+        this.rateLimitedUntil.delete(id);
+      }
+    }
+    const stateKeys = new Set<string>();
+    const pageKeys = new Set<string>();
+    for (const group of this.config.groups) {
+      for (const item of group.workflows) {
+        stateKeys.add(itemKey(group.accountId, item));
+        if (!isPlanEntry(item)) {
+          pageKeys.add(pagesKey(group.accountId, item.owner, item.repo));
+        }
+      }
+    }
+    for (const key of [...this.states.keys()]) {
+      if (!stateKeys.has(key)) {
+        this.states.delete(key);
+      }
+    }
+    for (const key of [...this.pagesStates.keys()]) {
+      if (!pageKeys.has(key)) {
+        this.pagesStates.delete(key);
+      }
+    }
+    for (const key of [...this.pagesChecked.keys()]) {
+      if (!pageKeys.has(key)) {
+        this.pagesChecked.delete(key);
+      }
+    }
+    void writeHealth(this.globalState, this.health);
   }
 
   setViewVisible(visible: boolean): void {
@@ -177,7 +245,7 @@ export class Board implements vscode.Disposable {
 
   // ---------- API helpers ----------
 
-  private async api(account: AccountConfig, url: string): Promise<{ status: number; json: unknown }> {
+  private async api(account: AccountConfig, url: string): Promise<FetchResult> {
     const token = await this.tokens.get(account.id);
     return fetchJson(url, token, { bamboo: accountKind(account) === "bamboo" });
   }
@@ -225,14 +293,38 @@ export class Board implements vscode.Disposable {
    * names enriched from the project list when a plan payload does not
    * carry its project's name. `tokenOverride` covers accounts that are
    * not saved yet (the settings form passes the typed token).
+   * The plan list is paged with start-index until a short page arrives,
+   * up to a hard cap; `truncated` reports that the cap cut the list.
    */
-  async discoverPlans(account: AccountConfig, tokenOverride?: string): Promise<BambooPlanSummary[]> {
+  async discoverPlans(
+    account: AccountConfig,
+    tokenOverride?: string,
+  ): Promise<{ plans: BambooPlanSummary[]; truncated: boolean }> {
     const token = tokenOverride ?? (await this.tokens.get(account.id));
-    const res = await fetchJson(bambooPlansUrl(account.baseUrl), token, { bamboo: true });
-    if (res.status < 200 || res.status >= 300) {
-      throw new Error(`HTTP ${res.status}`);
+    const plans: BambooPlanSummary[] = [];
+    let truncated = false;
+    for (let startIndex = 0; ; startIndex += BAMBOO_PLANS_PAGE_SIZE) {
+      const res = await fetchJson(bambooPlansUrl(account.baseUrl, startIndex), token, { bamboo: true });
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      plans.push(...parseBambooPlans(res.json));
+      if (plans.length >= BAMBOO_PLANS_CAP) {
+        // The cap is reached; whether the server has more is unknown
+        // unless the page was short — a full page at the cap means the
+        // list was cut.
+        truncated = bambooPlanCount(res.json) >= BAMBOO_PLANS_PAGE_SIZE;
+        plans.length = BAMBOO_PLANS_CAP;
+        break;
+      }
+      if (bambooPlanCount(res.json) < BAMBOO_PLANS_PAGE_SIZE) {
+        break; // Short page: the list is exhausted.
+      }
     }
-    const plans = parseBambooPlans(res.json);
+    // Pages arrive sorted per page; the checklist groups by project, so
+    // the accumulated list is sorted as one (same order parseBambooPlans
+    // uses).
+    plans.sort((a, b) => a.projectKey.localeCompare(b.projectKey) || a.planKey.localeCompare(b.planKey));
     try {
       const projRes = await fetchJson(bambooProjectsUrl(account.baseUrl), token, { bamboo: true });
       if (projRes.status >= 200 && projRes.status < 300) {
@@ -247,7 +339,7 @@ export class Board implements vscode.Disposable {
     } catch {
       // Project names only group the checklist; the plans stand on their own.
     }
-    return plans;
+    return { plans, truncated };
   }
 
   // ---------- Liveness ----------
@@ -316,7 +408,7 @@ export class Board implements vscode.Disposable {
         if (!silent && transition.recovered && settings.notifyOnRecovery) {
           void vscode.window.showInformationMessage(t("notify.recovery", account.name));
         }
-        if (!silent && transition.authChanged && next === "authError" && settings.notifyOnOutage) {
+        if (!silent && transition.authChanged && next === "authError" && settings.notifyOnAuthError) {
           void vscode.window.showWarningMessage(t("notify.authError", account.name));
         }
       }
@@ -359,8 +451,11 @@ export class Board implements vscode.Disposable {
           continue;
         }
         const h = this.health.get(account.id);
-        if (h && h.state === "unreachable") {
-          continue; // Do not hammer a server that is down; liveness owns it.
+        if (h && (h.state === "unreachable" || h.state === "authError")) {
+          continue; // Do not hammer a server that is down or rejecting the token; liveness owns it.
+        }
+        if (isRateLimited(this.rateLimitedUntil.get(account.id), Date.now())) {
+          continue; // A 429 pause is in effect for this account (liveness still probes it).
         }
         for (const item of group.workflows) {
           if (isPlanEntry(item) !== (accountKind(account) === "bamboo")) {
@@ -372,8 +467,13 @@ export class Board implements vscode.Disposable {
       // Repositories whose Pages deployment this cycle should check:
       // the Chrome edition checks a repository's Pages status in a poll
       // cycle only when a watched workflow in it freshly succeeded.
-      const pagesRepos = new Map<string, { account: AccountConfig; owner: string; repo: string }>();
-      for (const [key, { account, item }] of jobs) {
+      const pagesRepos = new Map<string, { account: AccountConfig; owner: string; repo: string; runId: number }>();
+      // Bounded concurrency: a long watch list must not fetch strictly
+      // one round-trip at a time, nor fan out without limit. Dedupe and
+      // the per-account skips happened above, at collection time; each
+      // task writes only its own state key, so the resulting states are
+      // the same as the serial order's.
+      await mapPool([...jobs.entries()], POLL_CONCURRENCY, async ([key, { account, item }]) => {
         if (isPlanEntry(item)) {
           await this.pollPlan(account, item, key);
         } else {
@@ -383,11 +483,19 @@ export class Board implements vscode.Disposable {
               account,
               owner: item.owner,
               repo: item.repo,
+              runId: next.latest.id,
             });
           }
         }
-      }
-      for (const [key, { account, owner, repo }] of pagesRepos) {
+      });
+      for (const [key, { account, owner, repo, runId }] of pagesRepos) {
+        // Cadence: while the newest run is unchanged, re-checking every
+        // poll cycle only adds load — a deployment takes minutes. A new
+        // run id always checks immediately.
+        if (!shouldCheckPages(this.pagesChecked.get(key), runId, Date.now())) {
+          continue;
+        }
+        this.pagesChecked.set(key, { runId, at: Date.now() });
         try {
           const res = await this.api(account, pagesDeploymentsUrl(account.baseUrl, owner, repo));
           if (res.status < 200 || res.status >= 300) {
@@ -408,6 +516,19 @@ export class Board implements vscode.Disposable {
     }
   }
 
+  /**
+   * Record a build-poll response for rate limiting: a 429 pauses the
+   * account's build polling until the server's Retry-After (capped) or,
+   * without one, until the next liveness cycle would run. Liveness is
+   * unaffected — it keeps probing and classifies 429 as reachable.
+   */
+  private noteRateLimit(account: AccountConfig, res: FetchResult): void {
+    const resetAt = rateLimitResetAt(res.status, res.retryAfterMs, Date.now(), readSettings().livenessSec * 1000);
+    if (resetAt !== undefined) {
+      this.rateLimitedUntil.set(account.id, resetAt);
+    }
+  }
+
   /** Poll one GitHub workflow. Returns the fresh state, or undefined when the fetch failed. */
   private async pollWorkflow(
     account: AccountConfig,
@@ -417,6 +538,7 @@ export class Board implements vscode.Disposable {
     const prev = this.states.get(key);
     try {
       const res = await this.api(account, listRunsUrl(account.baseUrl, w.owner, w.repo, w.workflow));
+      this.noteRateLimit(account, res);
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -457,6 +579,7 @@ export class Board implements vscode.Disposable {
     const prev = this.states.get(key);
     try {
       const res = await this.api(account, bambooResultsUrl(account.baseUrl, plan.planKey));
+      this.noteRateLimit(account, res);
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -507,8 +630,10 @@ export class Board implements vscode.Disposable {
     void vscode.window
       .showWarningMessage(t("notify.failure", displayName, subtitle), open)
       .then((choice) => {
-        if (choice === open && latest.htmlUrl) {
-          void vscode.env.openExternal(vscode.Uri.parse(latest.htmlUrl));
+        if (choice === open) {
+          // The run URL comes from the server; the shared guard only
+          // ever opens http/https.
+          void openExternalUrl(latest.htmlUrl);
         }
       });
   }
