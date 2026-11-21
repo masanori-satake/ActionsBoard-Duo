@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.2] - 2026-11-21
+
+### Fixed
+
+- **Natural Japanese for the scope label.** The title-bar scope command for the "mine" scope read 「スコープ: 自分の」; it now reads 「スコープ: 自分」.
+
+### 日本語
+
+- **スコープ表示の日本語を自然にしました。** タイトルバーのスコープ切り替えで「自分の」と表示されていた箇所を「スコープ: 自分」に直しました。
+
 ## [1.0.1] - 2026-11-21
 
 ### Changed
