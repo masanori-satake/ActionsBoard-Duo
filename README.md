@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v0.1.15-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v0.1.16-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -20,7 +20,7 @@ The board is a quiet tree in the Activity Bar: **account (server) → group → 
 
 It is a "-Duo": where a "-Solo" is complete on its own and fully local, a "-Duo" works by pairing with something else — here, the CI servers you configure. The pairing stays minimal and read-only: polling of the APIs you configured, nothing more. Tokens live only in SecretStorage, never in settings files.
 
-Current version: **v0.1.15**
+Current version: **v0.1.16**
 
 ---
 
@@ -52,9 +52,9 @@ Current version: **v0.1.15**
 ### ⌨️ Commands
 
 - **Refresh** — poll builds and liveness now.
-- **Switch Scope (All / Mine / Starred)** — cycle the scope filter.
+- **Scope: All / Scope: Mine / Scope: Starred** — one title-bar button per scope state; the current state is shown filled.
 - **Show Starred Only / Show All** — toggle the display mode.
-- **Expand Failures Only / Expand Running Too / Expand All / Collapse All** — expansion selectors.
+- **Expand Failures Only / Expand Running Too / Expand All / Collapse All** — expansion selectors; the current mode is shown filled.
 - **Open Settings (Accounts, Groups, Workflows)** — the one-screen settings form.
 
 <a id="en-settings"></a>
@@ -96,7 +96,7 @@ MIT — see [LICENSE](LICENSE).
 
 これは「-Duo」です。「-Solo」が単体で完結し完全ローカルであるのに対し、「-Duo」は何かと組になって働きます。ここでは、あなたが設定した CI サーバです。連携は最小限かつ読み取り専用に保ちます。設定した API へのポーリングだけで、それ以外は何もしません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v0.1.15**
+現在のバージョン: **v0.1.16**
 
 ---
 
@@ -128,9 +128,9 @@ MIT — see [LICENSE](LICENSE).
 ### ⌨️ コマンド
 
 - **更新** — ビルドと死活を今すぐ取得。
-- **スコープを切り替え（すべて / 自分の / 興味がある）** — スコープフィルターの循環切り替え。
+- **スコープ: すべて / スコープ: 自分の / スコープ: 興味がある** — スコープフィルター。状態ごとにタイトルバーのボタンがあり、現在の状態は塗りつぶしで示されます。
 - **興味があるものだけ表示 / 全体を表示** — 表示モードの切り替え。
-- **エラーのみ展開 / 実行中も展開 / すべて展開 / すべて畳む** — 展開セレクター。
+- **エラーのみ展開 / 実行中も展開 / すべて展開 / すべて畳む** — 展開セレクター。現在のモードは塗りつぶしで示されます。
 - **設定を開く（アカウント・グループ・ワークフロー）** — 一画面の設定フォーム。
 
 <a id="ja-settings"></a>

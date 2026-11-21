@@ -360,8 +360,8 @@
   saveBtn.textContent = S.save;
   cancelBtn.textContent = S.cancel;
   cancelBtn.addEventListener("click", () => {
-    // Ask the extension to re-send the saved state; the init handler below
-    // rebuilds the whole form from it, discarding every unsaved edit.
+    // Ask the extension to close the panel; unsaved edits live only in
+    // this webview, so closing discards them all.
     saveStatus.textContent = "";
     vscode.postMessage({ type: "cancel" });
   });

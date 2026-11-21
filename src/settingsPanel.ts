@@ -204,9 +204,10 @@ export class SettingsPanel {
         break;
       }
       case "cancel": {
-        // Discard every unsaved edit: re-send the init payload built from
-        // the saved config/settings so the form rebuilds itself from them.
-        await this.postInit();
+        // Discard every unsaved edit by closing the panel: the edits live
+        // only in the webview, so disposing it drops them with no config
+        // write and no re-render.
+        this.panel.dispose();
         break;
       }
       case "save": {

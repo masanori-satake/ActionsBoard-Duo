@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.16] - 2026-11-21
+
+### Changed
+
+- **Scope and expansion are now one button per state in the view title.** The two cycling buttons ("Switch Scope", "Switch Expansion") were unpredictable: what a press would do was unclear, and jumping straight to a state — or comparing states — took repeated presses. Each scope state (All / Mine / Starred) and each expansion preset (Failures only / Running too / Expand All / Collapse All) now has its own title-bar button, and the current state's button is shown with a filled icon; when the tree has been adjusted by hand, no expansion button shows as current. The tree's state text line is gone — the buttons themselves are the state display now.
+- **The settings form's Cancel button now closes the panel.** Cancel used to discard the unsaved edits and rebuild the form in place; it now discards the edits and closes the panel. Save (Apply) is unchanged.
+- **The icon now follows the Duo series design.** ActionsBoard-Duo is a "-Duo", but its icon still used the "-Solo" colours. Following the series design guide, it now uses the Duo scheme: a deep blue (#1E4A7A) ground with the coral signal badge at the bottom-right — colour and badge together mark "this one talks to the outside". The bars-and-circles motif is drawn a touch smaller and thinner, with the three rows centred as a group (the middle row on the vertical centre line) and in white only, so the badge is the single accent.
+
+### 日本語
+
+- **スコープと展開が、状態ごとのボタンになりました。** 従来の循環ボタン（「スコープを切り替え」「展開を切り替え」）は、押すと何が起きるか分かりにくく、目的の状態へ一気に移ったり見比べたりするにも何度も押す必要がありました。今はスコープの各状態（すべて / 自分の / 興味がある）と展開の各プリセット（エラーのみ / 実行中も / すべて展開 / すべて畳む）に専用のタイトルバーボタンがあり、現在の状態のボタンは塗りつぶしのアイコンで示されます。ツリーを手動で調整したときは、どの展開ボタンも現在の状態としては示されません。ツリー上部の状態テキスト行は無くなり、状態の表示はボタンが担います。
+- **設定フォームの「キャンセル」でパネルが閉じるようになりました。** 従来は未保存の編集を破棄してフォームを作り直していましたが、今は編集を破棄してパネル自体を閉じます。「保存（適用）」は変わりません。
+- **アイコンが Duo シリーズのデザインになりました。** ActionsBoard-Duo は「-Duo」ですが、アイコンは「-Solo」の配色（ティール地）のままでした。シリーズのデザインガイドに沿って、深い青（#1E4A7A）の地に右下のコーラルの電波バッジという Duo の配色に変えました。色とバッジの両方で「外部とやり取りする」ことを示します。線と丸のモチーフは、少し小さく・細くし、3行をひとまとまりとして上下中央に置き（2行目が中心線に来ます）、色は白だけにして、アクセントはバッジ1点にしました。
+
 ## [0.1.15] - 2026-11-21
 
 ### Fixed

@@ -1,15 +1,12 @@
 import * as vscode from "vscode";
 import { Board } from "./board";
-import { ExpansionEpoch, nextExpansionMode, type ExpansionMode } from "./core/expansion";
+import { ExpansionEpoch, type ExpansionMode } from "./core/expansion";
 import { workflowPageUrl } from "./core/github";
 import type { DisplayMode, ScopeFilter } from "./core/types";
-import { t } from "./i18n";
 import { SettingsPanel } from "./settingsPanel";
 import { BoardStatusBar } from "./statusBar";
 import { readConfig, TokenStore, writeConfig } from "./store";
 import { BoardTreeProvider, type BoardNode } from "./treeProvider";
-
-const SCOPE_ORDER: ScopeFilter[] = ["all", "mine", "starred"];
 
 export function activate(context: vscode.ExtensionContext): void {
   const tokens = new TokenStore(context.secrets);
@@ -36,29 +33,21 @@ export function activate(context: vscode.ExtensionContext): void {
   const expansionEpoch = new ExpansionEpoch();
   context.subscriptions.push({ dispose: () => expansionEpoch.advance() });
 
-  const syncViewChrome = () => {
+  // The view carries no state text line: the current scope / display mode /
+  // expansion mode are shown by the title-bar buttons themselves. These
+  // context keys drive the paired menu entries that swap each state button
+  // to its filled "active" icon while it is the current state. Expansion
+  // "manual" matches no preset, so no expansion button shows active.
+  const syncStateContexts = () => {
     void vscode.commands.executeCommand("setContext", "actionsBoardDuo.scope", provider.scope);
     void vscode.commands.executeCommand("setContext", "actionsBoardDuo.displayMode", provider.displayMode);
-    const scopeText =
-      provider.scope === "all" ? t("scope.all") : provider.scope === "mine" ? t("scope.mine") : t("scope.starred");
-    const displayText = provider.displayMode === "all" ? t("display.all") : t("display.starred");
-    const expansionText =
-      expansionMode === "failures"
-        ? t("expansion.failures")
-        : expansionMode === "running"
-          ? t("expansion.running")
-          : expansionMode === "all"
-            ? t("expansion.all")
-            : expansionMode === "collapsed"
-              ? t("expansion.collapsed")
-              : t("expansion.manual");
-    treeView.message = `${scopeText} · ${displayText} · ${expansionText}`;
+    void vscode.commands.executeCommand("setContext", "actionsBoardDuo.expansion", expansionMode);
   };
 
   const refreshUi = () => {
     provider.refresh();
     statusBar.update(board);
-    syncViewChrome();
+    syncStateContexts();
   };
 
   const guardProgrammatic = (ms = 1500) => {
@@ -76,9 +65,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // step instead of re-expanding nodes behind the newer instruction.
     const epoch = expansionEpoch.advance();
     expansionMode = mode;
+    syncStateContexts();
     if (mode === "collapsed") {
       await collapseAllInternal();
-      syncViewChrome();
+      syncStateContexts();
       return;
     }
     await collapseAllInternal();
@@ -103,7 +93,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }
     if (expansionEpoch.isCurrent(epoch)) {
-      syncViewChrome();
+      syncStateContexts();
     }
   };
 
@@ -139,7 +129,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     if (expansionMode !== "manual") {
       expansionMode = "manual";
-      syncViewChrome();
+      syncStateContexts();
     }
   };
   treeView.onDidExpandElement(markManual);
@@ -170,12 +160,22 @@ export function activate(context: vscode.ExtensionContext): void {
     SettingsPanel.show(context, board);
   });
 
-  register("actionsBoardDuo.cycleScope", async () => {
-    const next = SCOPE_ORDER[(SCOPE_ORDER.indexOf(provider.scope) + 1) % SCOPE_ORDER.length];
-    provider.scope = next;
-    await context.workspaceState.update("actionsBoardDuo.scope", next);
+  const setScope = async (scope: ScopeFilter) => {
+    provider.scope = scope;
+    await context.workspaceState.update("actionsBoardDuo.scope", scope);
     refreshUi();
-  });
+  };
+
+  // One command per scope state, plus an "Active" twin of each: a menu
+  // entry cannot override its command's icon, so the title bar swaps
+  // between the two commands (via the scope context key) to show the
+  // current state with a filled icon. Both twins run the same setter.
+  register("actionsBoardDuo.scopeAll", () => setScope("all"));
+  register("actionsBoardDuo.scopeAllActive", () => setScope("all"));
+  register("actionsBoardDuo.scopeMine", () => setScope("mine"));
+  register("actionsBoardDuo.scopeMineActive", () => setScope("mine"));
+  register("actionsBoardDuo.scopeStarred", () => setScope("starred"));
+  register("actionsBoardDuo.scopeStarredActive", () => setScope("starred"));
 
   register("actionsBoardDuo.showStarredOnly", async () => {
     provider.displayMode = "starred";
@@ -189,11 +189,18 @@ export function activate(context: vscode.ExtensionContext): void {
     refreshUi();
   });
 
-  register("actionsBoardDuo.cycleExpansion", () => applyExpansion(nextExpansionMode(expansionMode)));
+  // Same pairing as the scope buttons: each expansion preset has a normal
+  // command and an "Active" twin with a filled icon, swapped by the
+  // expansion context key. In "manual" no twin matches, so no expansion
+  // button shows active.
   register("actionsBoardDuo.expandFailures", () => applyExpansion("failures"));
+  register("actionsBoardDuo.expandFailuresActive", () => applyExpansion("failures"));
   register("actionsBoardDuo.expandRunning", () => applyExpansion("running"));
+  register("actionsBoardDuo.expandRunningActive", () => applyExpansion("running"));
   register("actionsBoardDuo.expandAll", () => applyExpansion("all"));
+  register("actionsBoardDuo.expandAllActive", () => applyExpansion("all"));
   register("actionsBoardDuo.collapseAll", () => applyExpansion("collapsed"));
+  register("actionsBoardDuo.collapseAllActive", () => applyExpansion("collapsed"));
 
   const setStarred = async (node: BoardNode | undefined, starred: boolean): Promise<void> => {
     if (!node?.workflow || !node.group) {
