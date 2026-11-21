@@ -19,6 +19,62 @@ export function userUrl(baseUrl: string): string {
   return `${normaliseBaseUrl(baseUrl)}/user`;
 }
 
+export interface RepoRef {
+  owner: string;
+  repo: string;
+}
+
+/**
+ * Read an owner/repo pair out of whatever the user pasted for a
+ * repository: a full web URL (with or without a trailing slash, with
+ * extra path segments such as /actions or /blob/... after the repo,
+ * with a .git suffix), the SSH form (git@host:owner/repo.git), or a
+ * bare owner/repo. The host is ignored — the account's API base URL
+ * governs where requests go, so a web URL copied from any GitHub or
+ * GHES browser tab works. Returns undefined when the text cannot be
+ * read as owner/repo at all.
+ */
+export function parseRepoUrl(input: string): RepoRef | undefined {
+  const text = (input ?? "").trim();
+  if (text === "") {
+    return undefined;
+  }
+  let path = text;
+  const ssh = /^[^@\s]+@[^:\s]+:(.+)$/.exec(text);
+  if (ssh) {
+    // git@github.com:owner/repo.git
+    path = ssh[1];
+  } else if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(text)) {
+    // scheme://host/owner/repo/... — drop the scheme and the host.
+    const rest = text.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "");
+    const slash = rest.indexOf("/");
+    if (slash < 0) {
+      return undefined;
+    }
+    path = rest.slice(slash + 1);
+  } else {
+    // No scheme: either a bare owner/repo, or host/owner/repo copied
+    // without the scheme. A dotted first segment with more segments
+    // behind it reads as the host.
+    const segments = text.split("/").filter((s) => s !== "");
+    if (segments.length >= 3 && segments[0].includes(".")) {
+      path = segments.slice(1).join("/");
+    }
+  }
+  const clean = path.split(/[?#]/)[0];
+  const parts = clean.split("/").filter((s) => s.trim() !== "");
+  if (parts.length < 2) {
+    return undefined;
+  }
+  const owner = parts[0].trim();
+  const repo = parts[1].trim().replace(/\.git$/i, "");
+  const valid = (s: string): boolean => /^[A-Za-z0-9._-]+$/.test(s) && s !== "." && s !== "..";
+  if (!valid(owner) || !valid(repo)) {
+    return undefined;
+  }
+  return { owner, repo };
+}
+
 export function listWorkflowsUrl(baseUrl: string, owner: string, repo: string): string {
   return `${normaliseBaseUrl(baseUrl)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows?per_page=100`;
 }

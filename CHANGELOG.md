@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.1] - 2026-11-21
+
+### Changed
+
+- **One shared "add" panel for the whole settings form.** Until now every group card carried its own always-open discovery panel, which duplicated the same inputs once per group. The panel now sits once, after the groups section: a destination selector picks which group the ticked items land in (the selector is hidden when there is only one group, and a freshly added group becomes the destination). The panel's contents still follow the destination group's account — workflow discovery for GitHub, the plan checklist for Bamboo — and group cards keep just their name, account, and watched list.
+- **Paste the repository URL instead of typing owner and repo.** The GitHub discovery panel now has a single repository field: paste the repository's URL and owner/repo are read out of it. The reading is tolerant — a trailing slash or none, extra path segments after the repo (such as /actions or /blob/...), a .git suffix, the SSH form (git@github.com:owner/repo.git), a bare owner/repo, and surrounding whitespace all work; the host part is ignored, since the account's API base URL decides where requests go. Text that cannot be read as a repository shows an inline explanation and nothing is fetched. Adding ticked workflows no longer creates duplicates of entries already in the group.
+- **Notification wording.** The outage/recovery checkboxes now read "service unreachable" / "service recovered" in Japanese (サービス不通を通知 / サービス復旧を通知）, and the failure-notification scope's "mine" option now says 自分が実行したジョブだけ ("Only jobs I ran").
+- **A shorter legend.** In the settings form's legend, the star now reads simply ★ = お気に入り (Favorite) and the person mark 👤 = 自身が実行 (Run by you), without the explanatory parentheses.
+
+### 日本語
+
+- **設定フォームの「追加」パネルを、フォーム全体で1つにしました。** これまではグループのカードごとに発見パネルが常時開いて付いていて、同じ入力欄がグループの数だけ並んでいました。今はグループの節の後に1つだけ置き、追加先のグループを選んで（グループが1つだけのときは選択欄自体を出さず、そのグループが追加先になります。新しく作ったグループは追加先になります）、チェックしたものをそこへ追加します。中身は追加先グループのアカウントに従い、GitHub ならワークフローの発見、Bamboo ならプランのチェックリストのままです。グループのカード側には名前・アカウント・監視リストだけが残ります。
+- **owner と repo を打つ代わりに、リポジトリの URL を貼る形にしました。** GitHub の発見パネルはリポジトリ欄が1つになり、URL を貼れば owner/repo を読み取ります。読み取りは緩やかで、末尾の「/」の有無、リポジトリの後ろに続くパス（/actions や /blob/... など）、.git の接尾辞、SSH 形式（git@github.com:owner/repo.git）、owner/repo の直書き、前後の空白をどれも受け付けます。ホスト部分は見ません（リクエスト先はアカウントの API ベース URL で決まるため）。リポジトリとして読み取れない文字列では、欄の下に説明を出して取得はしません。チェックしたワークフローの追加では、すでにグループにあるものと同じものは重ねて追加しなくなりました。
+- **通知まわりの文言を変えました。** チェックボックスは「サービス不通を通知」「サービス復旧を通知」に、失敗通知の範囲の「自分」の選択肢は「自分が実行したジョブだけ」になりました。
+- **凡例を短くしました。** 設定フォームの凡例で、星は「★ = お気に入り」、人の印は「👤 = 自身が実行」とだけ書くようにし、括弧書きの説明を落としました。
+
 ## [0.2.0] - 2026-11-21
 
 ### Added

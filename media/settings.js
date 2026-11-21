@@ -10,6 +10,7 @@
   let removedAccountIds = [];
   let discovered = {}; // groupId -> [{ name, file }]
   let discoveredPlans = {}; // groupId -> [{ projectKey, projectName, planKey, name }]
+  let discoveryGroupId = null; // destination group of the shared discovery panel
   let requestSeq = 0;
   const pending = {}; // requestId -> callback
 
@@ -188,34 +189,76 @@
     );
   }
 
-  function addBox(group) {
-    const account = state.config.accounts.find((a) => a.id === group.accountId);
-    if (accountKindOf(account) === "bamboo") {
-      return addBoxBamboo(group, account);
+  // ---------- Shared discovery panel ----------
+  // One panel for the whole form, after the groups section — not one
+  // per group. A destination selector picks the group the ticked items
+  // land in (hidden when there is only one group), and the panel's
+  // contents follow that group's account kind.
+
+  function discoveryGroup() {
+    const groups = state.config.groups;
+    if (groups.length === 0) {
+      return null;
     }
-    // Discovery
-    const dOwner = h("input", { type: "text", placeholder: S.owner });
-    const dRepo = h("input", { type: "text", placeholder: S.repo });
+    if (!groups.some((g) => g.id === discoveryGroupId)) {
+      discoveryGroupId = groups[0].id;
+    }
+    return groups.find((g) => g.id === discoveryGroupId) ?? null;
+  }
+
+  function groupLabel(group) {
+    return group.name && group.name.trim() !== "" ? group.name : S.unnamedGroup;
+  }
+
+  function discoveryPanel() {
+    const group = discoveryGroup();
+    if (!group) {
+      return null;
+    }
+    const account = state.config.accounts.find((a) => a.id === group.accountId);
+    const children = [];
+    if (state.config.groups.length > 1) {
+      const select = h("select", null);
+      for (const g of state.config.groups) {
+        select.appendChild(h("option", { value: g.id, selected: g.id === group.id }, groupLabel(g)));
+      }
+      select.addEventListener("change", () => {
+        discoveryGroupId = select.value;
+        render();
+      });
+      children.push(h("div", { class: "row" }, labeled(S.addToGroup, select)));
+    }
+    children.push(
+      accountKindOf(account) === "bamboo"
+        ? discoveryPlansBody(group, account)
+        : discoveryWorkflowsBody(group, account),
+    );
+    return h("div", { class: "addbox" }, children);
+  }
+
+  function discoveryWorkflowsBody(group, account) {
+    // One input for the repository: the user pastes the repository URL
+    // (or anything readable as owner/repo) and the extension host reads
+    // owner/repo out of it — no separate owner/repo typing.
+    const dUrl = h("input", { type: "text", placeholder: S.repoUrlPlaceholder });
     const dList = h("div", { class: "checklist" });
     const listBtn = h(
       "button",
       {
         class: "add-btn",
         onclick: () => {
-          const owner = dOwner.value.trim();
-          const repo = dRepo.value.trim();
-          if (!owner || !repo) {
-            dList.replaceChildren(h("span", { class: "result-ng" }, S.discoverNeedsRepo));
-            return;
-          }
           const requestId = `discover-${++requestSeq}`;
           pending[requestId] = (msg) => {
+            if (msg.code === "badRepoUrl") {
+              dList.replaceChildren(h("span", { class: "result-ng" }, S.discoverBadUrl));
+              return;
+            }
             if (msg.error) {
               dList.replaceChildren(h("span", { class: "result-ng" }, msg.error));
               return;
             }
             discovered[group.id] = msg.workflows;
-            renderDiscovered(group, dList, owner, repo);
+            renderDiscovered(group, dList, msg.owner, msg.repo);
           };
           vscode.postMessage({
             type: "discover",
@@ -224,8 +267,7 @@
             accountId: group.accountId,
             baseUrl: account ? account.baseUrl : "",
             token: tokens[group.accountId] || "",
-            owner,
-            repo,
+            repoText: dUrl.value,
           });
         },
       },
@@ -233,9 +275,9 @@
     );
     return h(
       "div",
-      { class: "addbox" },
+      null,
       h("h3", { class: "addbox-title" }, S.addByDiscovery),
-      h("div", { class: "row" }, dOwner, dRepo, listBtn),
+      h("div", { class: "row" }, dUrl, listBtn),
       dList,
     );
   }
@@ -261,7 +303,12 @@
         onclick: () => {
           for (const { wf, cb } of checks) {
             if (cb.checked) {
-              group.workflows.push({ owner, repo, workflow: wf.file, starred: true });
+              const already = group.workflows.some(
+                (w) => w.owner === owner && w.repo === repo && w.workflow === wf.file,
+              );
+              if (!already) {
+                group.workflows.push({ owner, repo, workflow: wf.file, starred: true });
+              }
             }
           }
           render();
@@ -272,7 +319,7 @@
     container.replaceChildren(...checks.map((c) => c.row), addBtn);
   }
 
-  function addBoxBamboo(group, account) {
+  function discoveryPlansBody(group, account) {
     const dList = h("div", { class: "checklist" });
     const listBtn = h(
       "button",
@@ -306,7 +353,7 @@
     );
     return h(
       "div",
-      { class: "addbox" },
+      null,
       h("h3", { class: "addbox-title" }, S.addByDiscoveryPlans),
       h("div", { class: "row" }, listBtn),
       dList,
@@ -404,7 +451,6 @@
       ),
       h("h3", null, isBamboo ? S.plans : S.workflows),
       table,
-      addBox(group),
     );
   }
 
@@ -428,6 +474,7 @@
   function render() {
     if (!state) return;
     const { config, settings } = state;
+    const panel = discoveryPanel();
     const scopeSelect = h("select", null);
     for (const [value, label] of [
       ["all", S.scopeAll],
@@ -460,12 +507,16 @@
           class: "add-btn",
           onclick: () => {
             if (config.accounts.length === 0) return;
-            config.groups.push({ id: uid(), name: "", accountId: config.accounts[0].id, workflows: [] });
+            const group = { id: uid(), name: "", accountId: config.accounts[0].id, workflows: [] };
+            config.groups.push(group);
+            // The new group is the natural next thing to fill.
+            discoveryGroupId = group.id;
             render();
           },
         },
         `+ ${S.addGroup}`,
       ),
+      ...(panel ? [panel] : []),
       h("h2", null, S.polling),
       h(
         "div",
@@ -521,6 +572,7 @@
       removedAccountIds = [];
       discovered = {};
       discoveredPlans = {};
+      discoveryGroupId = null;
       render();
     } else if (msg.type === "testResult" || msg.type === "discovered" || msg.type === "discoveredPlans") {
       const cb = pending[msg.requestId];

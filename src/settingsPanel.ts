@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { listWorkflowsUrl, normaliseBaseUrl, parseWorkflows } from "./core/github";
+import { listWorkflowsUrl, normaliseBaseUrl, parseRepoUrl, parseWorkflows } from "./core/github";
 import { fetchJson } from "./net";
 import type { AppConfig } from "./core/types";
 import { isJa, t } from "./i18n";
@@ -33,8 +33,6 @@ const STRINGS = isJa()
       plans: "監視対象プラン",
       project: "プロジェクト",
       planKey: "プランキー",
-      owner: "owner",
-      repo: "repo",
       repository: "リポジトリ",
       workflowFile: "ワークフローファイル",
       starred: "お気に入り",
@@ -49,15 +47,15 @@ const STRINGS = isJa()
       liveness: "死活確認の間隔（秒）",
       notifications: "通知",
       notifyFailure: "ビルド失敗を通知",
-      notifyOutage: "不通を通知",
-      notifyRecovery: "復旧を通知",
+      notifyOutage: "サービス不通を通知",
+      notifyRecovery: "サービス復旧を通知",
       notifyScope: "失敗通知の範囲",
       scopeAll: "すべて",
-      scopeMine: "自分が起こした実行だけ",
+      scopeMine: "自分が実行したジョブだけ",
       scopeStarred: "星を付けたワークフローだけ",
       legend: "印の凡例",
-      legendStar: "★ = 興味がある（星を付けたワークフロー）",
-      legendMine: "👤 = 自分の（最新の実行に、自分のアカウントが起こしたものが含まれる）",
+      legendStar: "★ = お気に入り",
+      legendMine: "👤 = 自身が実行",
       legendStatus: "状態: ✓ 成功 · ✗ 失敗 · 実行中 · 不通（サーバに到達できない。失敗には数えません）",
       save: "保存（適用）",
       cancel: "キャンセル",
@@ -66,7 +64,11 @@ const STRINGS = isJa()
       noGroups: "グループがありません。",
       noWorkflows: "ワークフローはまだありません。",
       noPlans: "プランはまだありません。",
-      discoverNeedsRepo: "owner と repo を入力してください。",
+      addToGroup: "追加先のグループ",
+      unnamedGroup: "（名前なしグループ）",
+      repoUrlPlaceholder: "https://github.com/owner/repo",
+      discoverBadUrl:
+        "リポジトリを読み取れませんでした。リポジトリの URL（https://github.com/owner/repo のような形）を貼り付けてください。",
       plansNeedsServer: "先にサーバの URL とトークンを入力してください。",
     }
   : {
@@ -95,8 +97,6 @@ const STRINGS = isJa()
       plans: "Watched plans",
       project: "Project",
       planKey: "Plan key",
-      owner: "owner",
-      repo: "repo",
       repository: "Repository",
       workflowFile: "Workflow file",
       starred: "Favorite",
@@ -111,15 +111,15 @@ const STRINGS = isJa()
       liveness: "Liveness check interval (sec)",
       notifications: "Notifications",
       notifyFailure: "Notify build failures",
-      notifyOutage: "Notify server outage",
-      notifyRecovery: "Notify server recovery",
+      notifyOutage: "Notify when a service becomes unreachable",
+      notifyRecovery: "Notify when a service recovers",
       notifyScope: "Failure notification scope",
       scopeAll: "All",
-      scopeMine: "Only runs started by me",
+      scopeMine: "Only jobs I ran",
       scopeStarred: "Only starred workflows",
       legend: "Legend",
-      legendStar: "★ = starred (interested)",
-      legendMine: "👤 = mine (the newest runs include one started by your account)",
+      legendStar: "★ = Favorite",
+      legendMine: "👤 = Run by you",
       legendStatus: "Status: ✓ success · ✗ failure · running · unreachable (server down; never counted as a failure)",
       save: "Save (Apply)",
       cancel: "Cancel",
@@ -128,7 +128,10 @@ const STRINGS = isJa()
       noGroups: "No groups yet.",
       noWorkflows: "No workflows yet.",
       noPlans: "No plans yet.",
-      discoverNeedsRepo: "Enter owner and repo.",
+      addToGroup: "Add to group",
+      unnamedGroup: "(Unnamed group)",
+      repoUrlPlaceholder: "https://github.com/owner/repo",
+      discoverBadUrl: "Could not read that as a repository. Paste the repository URL (like https://github.com/owner/repo).",
       plansNeedsServer: "Enter the server URL and a token first.",
     };
 
@@ -297,12 +300,23 @@ export class SettingsPanel {
       case "discover": {
         const requestId = msg.requestId as string;
         const groupId = msg.groupId as string;
+        // The form sends the pasted repository text raw; the tolerant
+        // parse lives in core (unit-tested). Unparseable input is
+        // reported back with a code so the form can show its own
+        // localised guidance instead of a raw error.
+        const parsed = parseRepoUrl(String(msg.repoText ?? ""));
+        if (!parsed) {
+          await this.panel.webview.postMessage({
+            type: "discovered",
+            requestId,
+            groupId,
+            code: "badRepoUrl",
+            workflows: [],
+          });
+          break;
+        }
+        const { owner, repo } = parsed;
         try {
-          const owner = String(msg.owner ?? "").trim();
-          const repo = String(msg.repo ?? "").trim();
-          if (!owner || !repo) {
-            throw new Error("owner/repo");
-          }
           let account = this.board.account(String(msg.accountId ?? ""));
           let workflows;
           if (account && !(typeof msg.token === "string" && msg.token.trim() !== "")) {
@@ -326,6 +340,8 @@ export class SettingsPanel {
             type: "discovered",
             requestId,
             groupId,
+            owner,
+            repo,
             workflows: workflows.map((w) => ({ name: w.name, file: w.path.split("/").pop() ?? w.path })),
           });
         } catch (err) {

@@ -7,6 +7,7 @@ import {
   pagesDeploymentsUrl,
   parseJobs,
   parsePagesDeployment,
+  parseRepoUrl,
   parseRuns,
   parseWorkflowName,
   parseWorkflows,
@@ -137,6 +138,42 @@ test("urls: base normalisation and web base", () => {
   assert.equal(webBaseFromApi("https://api.github.com"), "https://github.com");
   assert.equal(webBaseFromApi("https://ghes.example.com/api/v3"), "https://ghes.example.com");
   assert.ok(listRunsUrl("https://api.github.com", "o", "r", "ci.yml").includes("/repos/o/r/actions/workflows/ci.yml/runs"));
+});
+
+test("parseRepoUrl: web URLs, with and without trailing slash", () => {
+  assert.deepEqual(parseRepoUrl("https://github.com/masanori-satake/QuickLog-Solo"), {
+    owner: "masanori-satake",
+    repo: "QuickLog-Solo",
+  });
+  assert.deepEqual(parseRepoUrl("https://github.com/masanori-satake/QuickLog-Solo/"), {
+    owner: "masanori-satake",
+    repo: "QuickLog-Solo",
+  });
+  assert.deepEqual(parseRepoUrl("http://github.com/o/r"), { owner: "o", repo: "r" });
+});
+
+test("parseRepoUrl: extra path segments and query/fragment are ignored", () => {
+  assert.deepEqual(parseRepoUrl("https://github.com/o/r/actions"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("https://github.com/o/r/blob/main/README.md"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("https://ghes.example.com/o/r/pulls?foo=bar#frag"), { owner: "o", repo: "r" });
+});
+
+test("parseRepoUrl: .git suffix, SSH form, bare owner/repo, whitespace", () => {
+  assert.deepEqual(parseRepoUrl("https://github.com/o/r.git"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("git@github.com:o/r.git"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("git@github.com:o/r"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("o/r"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("  https://github.com/o/r  \n"), { owner: "o", repo: "r" });
+  assert.deepEqual(parseRepoUrl("github.com/o/r"), { owner: "o", repo: "r" });
+});
+
+test("parseRepoUrl: unparseable input returns undefined", () => {
+  assert.equal(parseRepoUrl(""), undefined);
+  assert.equal(parseRepoUrl("   "), undefined);
+  assert.equal(parseRepoUrl("https://github.com/"), undefined);
+  assert.equal(parseRepoUrl("https://github.com/onlyowner"), undefined);
+  assert.equal(parseRepoUrl("justone"), undefined);
+  assert.equal(parseRepoUrl("not a url at all"), undefined);
 });
 
 // ---------- branch-run selection ----------

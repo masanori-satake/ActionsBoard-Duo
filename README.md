@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v0.2.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v0.2.1-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -20,7 +20,7 @@ The board is a tree in the Activity Bar: **account (server) → group → workfl
 
 The name ends in "-Duo" because the extension works together with your CI servers. (The "-Solo" series works entirely on its own, locally.) The connection is read-only: the extension polls the servers you configure and never changes anything on them. Tokens are stored only in SecretStorage, never in settings files.
 
-Current version: **v0.2.0**
+Current version: **v0.2.1**
 
 ---
 
@@ -51,7 +51,7 @@ Current version: **v0.2.0**
    - Bamboo: the server's base URL (for example `https://bamboo.example.com`) and a personal access token.
    - "Test connection" checks the URL and token, and shows the name it signed in as.
 3. Add a group and choose its account.
-4. Add what to watch. For GitHub, type a repository's owner and name, list its workflows, and tick the ones you want. For Bamboo, list the server's plans and tick the ones you want. New entries start out starred.
+4. Add what to watch, in the panel below the groups. Pick the group to add to, then: for GitHub, paste the repository's URL, list its workflows, and tick the ones you want; for Bamboo, list the server's plans and tick the ones you want. New entries start out starred.
 5. Press Save. Polling starts, the tree fills in, and the status bar shows the counts.
 6. Shape the view: star the entries you care about, use the filter and expansion buttons in the view title, and drag rows to reorder them.
 
@@ -106,7 +106,7 @@ MIT — see [LICENSE](LICENSE).
 
 名前の「-Duo」は、CI サーバと組になって働くという意味です（「-Solo」シリーズは単体で、完全ローカルに動きます）。サーバへは読み取りだけです。設定したサーバを定期的に取得しに行くだけで、サーバ側のものを変更することはありません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v0.2.0**
+現在のバージョン: **v0.2.1**
 
 ---
 
@@ -137,7 +137,7 @@ MIT — see [LICENSE](LICENSE).
    - Bamboo: サーバのベース URL（例: `https://bamboo.example.com`）とアクセストークン。
    - 「接続テスト」を押すと、URL とトークンを確認し、サインインできた名前を表示します。
 3. グループを追加し、アカウントを選びます。
-4. 監視するものを追加します。GitHub は、リポジトリの owner と名前を入れてワークフロー一覧を取得し、見たいものにチェックを入れます。Bamboo は、サーバのプラン一覧を取得し、見たいものにチェックを入れます。追加したものには最初から星が付きます。
+4. 監視するものを追加します。グループの下にあるパネルで追加先のグループを選び、GitHub はリポジトリの URL を貼ってワークフロー一覧を取得し、見たいものにチェックを入れます。Bamboo は、サーバのプラン一覧を取得し、見たいものにチェックを入れます。追加したものには最初から星が付きます。
 5. 「保存」を押すと取得が始まり、ツリーとステータスバーに状態が出ます。
 6. 見え方を整えます。気になるものに星を付け、タイトルバーのフィルターと展開ボタンを使い、行をドラッグして並べ替えます。
 
