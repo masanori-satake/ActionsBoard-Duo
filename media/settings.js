@@ -121,9 +121,8 @@
     return h(
       "tr",
       null,
-      h("td", null, textInput(w.owner, (v) => (w.owner = v))),
-      h("td", null, textInput(w.repo, (v) => (w.repo = v))),
-      h("td", null, textInput(w.workflow, (v) => (w.workflow = v))),
+      h("td", null, `${w.owner}/${w.repo}`),
+      h("td", null, w.workflow),
       h("td", null, textInput(w.alias || "", (v) => (w.alias = v))),
       h("td", { class: "star" }, star),
       h(
@@ -234,8 +233,7 @@
               h(
                 "tr",
                 null,
-                h("th", null, S.owner),
-                h("th", null, S.repo),
+                h("th", null, S.repository),
                 h("th", null, S.workflowFile),
                 h("th", null, S.alias),
                 h("th", null, S.starred),

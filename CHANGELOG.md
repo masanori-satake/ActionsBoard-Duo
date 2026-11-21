@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.10] - 2026-11-21
+
+### Changed
+
+- **The settings form's watched-workflows table no longer presents repository identity as something to type.** The heading now reads "監視対象ワークフロー" in Japanese. Owner and repo are shown together as one plain-text "Repository" column (`owner/repo`), and the workflow file is plain text too — since workflows are added by repository discovery, these values are always filled automatically and were never meant to be edited by hand. The alias field, the star checkbox, and the remove button are unchanged, and the saved data is exactly as before.
+
+### 日本語
+
+- **設定画面の監視対象ワークフロー表で、リポジトリの情報が入力するものには見えないようにしました。** 見出しを「監視対象ワークフロー」に改めました。owner と repo は「リポジトリ」列に `owner/repo` の形でテキスト表示にまとめ、ワークフローファイルもテキスト表示にしました。ワークフローはリポジトリから追加する方式のため、これらの値は常に自動で入るもので、手入力するものではありませんでした。別名の入力、星のチェック、削除ボタンは従来どおりで、保存されるデータにも変更はありません。
+
 ## [0.1.9] - 2026-11-21
 
 ### Fixed
