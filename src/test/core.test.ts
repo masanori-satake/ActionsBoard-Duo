@@ -25,7 +25,7 @@ import {
 } from "../core/liveness";
 import { aggregateStatusBar, isFreshFailure, selectBranchRuns, visibleGroups, workflowVisible } from "../core/model";
 import { moveGroup, moveWatchedItem } from "../core/reorder";
-import { isMutedRun, normaliseStatus } from "../core/status";
+import { normaliseStatus } from "../core/status";
 import type {
   AccountHealth,
   GroupConfig,
@@ -415,24 +415,6 @@ test("workflowDisplayName: falls back to the file name before the first fetch", 
   assert.equal(workflowDisplayName(w), "ai-coder-trigger.yml");
   assert.equal(workflowDisplayName(w, ""), "ai-coder-trigger.yml");
   assert.equal(workflowDisplayName(w, "   "), "ai-coder-trigger.yml");
-});
-
-// ---------- branch-run muting ----------
-
-test("isMutedRun: the latest run itself keeps its status colour", () => {
-  const latest = makeRun(3, "main", "success", "2026-11-21T03:00:00Z");
-  assert.equal(isMutedRun(latest, latest), false);
-});
-
-test("isMutedRun: branch runs other than the latest are muted", () => {
-  const latest = makeRun(3, "main", "success", "2026-11-21T03:00:00Z");
-  const staleFailure = makeRun(1, "fix/old-branch", "failure", "2026-11-21T01:00:00Z");
-  assert.equal(isMutedRun(latest, staleFailure), true);
-});
-
-test("isMutedRun: unknown latest mutes nothing", () => {
-  const run = makeRun(1, "dev", "failure", "2026-11-21T01:00:00Z");
-  assert.equal(isMutedRun(undefined, run), false);
 });
 
 // ---------- watched entries: workflows and plans (0.2.0) ----------

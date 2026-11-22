@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { isLatestFailure } from "./core/expansion";
 import { showsRecoveryMarker } from "./core/liveness";
 import { visibleGroups, workflowIsMine } from "./core/model";
-import { isMutedRun } from "./core/status";
 import type {
   AccountConfig,
   DisplayMode,
@@ -438,13 +437,10 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     const item = new vscode.TreeItem(node.label ?? run.branch, vscode.TreeItemCollapsibleState.Collapsed);
     item.contextValue = "run";
     const s = STATUS_ICON[run.status];
-    // Only the workflow's newest run overall carries its status colour;
-    // branch runs for other runs keep the glyph but are muted to gray, so a
-    // stale failure on a side branch does not read as the current state.
-    const state =
-      node.account && node.workflow ? this.board.states.get(itemKey(node.account.id, node.workflow)) : undefined;
-    const color = isMutedRun(state?.latest, run) ? "charts.gray" : s.color;
-    item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(color));
+    // Every run carries its own status colour. The branch list is
+    // chronological (newest first), so the newest run reads as the
+    // current state by position; older runs keep their colours.
+    item.iconPath = new vscode.ThemeIcon(s.icon, new vscode.ThemeColor(s.color));
     const parts: string[] = [];
     if (run.title) {
       parts.push(run.title);
@@ -548,7 +544,7 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
    * Failed runs that are their workflow's newest run overall — the
    * "failures" expansion set. A stale failure on a side branch (the
    * workflow's newest run is a different one) does not pull the tree
-   * open; it stays visible, muted, in the branch list.
+   * open; it stays visible in the branch list.
    */
   currentFailureRunNodes(): BoardNode[] {
     return this.allNodes().filter((n) => {

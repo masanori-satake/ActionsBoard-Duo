@@ -40,9 +40,8 @@ export function shouldExpandFailedRun(jobCount: number | null): boolean {
  * it is the workflow's newest run overall. A failure on a side branch
  * that the workflow has since moved past — a newer run exists, whether
  * it succeeded or is still running — is history, not the current
- * state, so it stays out of the "failures" expansion set. The tree
- * already mutes such runs for the same reason, and the status bar
- * counts and failure notifications likewise key on the newest run.
+ * state, so it stays out of the "failures" expansion set. The status
+ * bar counts and failure notifications likewise key on the newest run.
  * `latest` is undefined when no newest run is known; nothing counts
  * as current then.
  */
