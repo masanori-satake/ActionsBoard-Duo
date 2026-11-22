@@ -37,4 +37,3 @@ export function normaliseStatus(status: string | null | undefined, conclusion: s
 export function isMutedRun(latest: RunInfo | undefined, run: RunInfo): boolean {
   return latest !== undefined && latest.id !== run.id;
 }
-
