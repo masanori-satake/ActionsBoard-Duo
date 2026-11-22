@@ -209,7 +209,7 @@ test("selectBranchRuns keeps the newest run per branch", () => {
   assert.equal(picked.find((r) => r.branch === "main")?.id, 3);
 });
 
-test("selectBranchRuns orders failures first, then running, then success", () => {
+test("selectBranchRuns orders newest first, regardless of status", () => {
   const runs = [
     makeRun(1, "ok", "success", "2026-11-21T03:00:00Z"),
     makeRun(2, "bad", "failure", "2026-11-21T01:00:00Z"),
@@ -217,7 +217,7 @@ test("selectBranchRuns orders failures first, then running, then success", () =>
   ];
   assert.deepEqual(
     selectBranchRuns(runs).map((r) => r.branch),
-    ["bad", "busy", "ok"],
+    ["ok", "busy", "bad"],
   );
 });
 

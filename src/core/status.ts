@@ -38,16 +38,3 @@ export function isMutedRun(latest: RunInfo | undefined, run: RunInfo): boolean {
   return latest !== undefined && latest.id !== run.id;
 }
 
-/** Sort rank for display: failures first, then running, other, success. */
-export function statusRank(status: RunStatus): number {
-  switch (status) {
-    case "failure":
-      return 0;
-    case "running":
-      return 1;
-    case "other":
-      return 2;
-    case "success":
-      return 3;
-  }
-}
