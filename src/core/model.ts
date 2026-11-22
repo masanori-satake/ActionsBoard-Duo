@@ -1,4 +1,3 @@
-import { statusRank } from "./status";
 import type {
   AccountHealth,
   AccountKind,
@@ -14,8 +13,10 @@ import { isPlanEntry, itemKey } from "./types";
 /**
  * Pick the newest run per branch. Input runs are expected newest-first
  * (the GitHub API order); the first run seen for a branch wins.
- * Output order: failures first, then running, other, success; inside one
- * status, the most recently updated first.
+ * Output order: purely chronological, most recently updated first —
+ * the same order the Bamboo results arrive in. Status never reorders
+ * the list: a stale failure must not float above newer runs, or the
+ * branch list stops reading as a timeline.
  */
 export function selectBranchRuns(runs: RunInfo[]): RunInfo[] {
   const byBranch = new Map<string, RunInfo>();
@@ -24,13 +25,7 @@ export function selectBranchRuns(runs: RunInfo[]): RunInfo[] {
       byBranch.set(run.branch, run);
     }
   }
-  return [...byBranch.values()].sort((a, b) => {
-    const rank = statusRank(a.status) - statusRank(b.status);
-    if (rank !== 0) {
-      return rank;
-    }
-    return b.updatedAt.localeCompare(a.updatedAt);
-  });
+  return [...byBranch.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 /** Is this workflow "mine"? Any branch run started by the account's login. */

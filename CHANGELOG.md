@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] - 2026-11-23
+
+### Changed
+
+- **"Expand failures" now follows the current state.** The failures expansion (the title-bar button, the first-open expansion, and the status-bar click) used to open every failed run anywhere in the tree, so a stale failure on an old side branch pulled its workflow open even when the workflow's newest run was fine. A failed run now counts only when it is its workflow's newest run overall — the same notion the status bar counts and failure notifications already use. Stale branch failures stay in the tree without expanding anything.
+- **Branch runs are now listed newest first.** The per-branch run list under a workflow was grouped by status (failures, then running, then success), so older failures floated above newer runs and the list did not read as a timeline. It is now purely chronological, most recently updated first — the same order Bamboo results already used.
+- **Every branch run now shows its status colour.** Only the workflow's newest run used to be coloured; the other branch runs were muted to gray so a stale failure would not read as the current state. With the list chronological, position carries that distinction instead — the newest run is the top row — so each run's icon now carries its own status colour.
+
+### 日本語
+
+- **「エラーのみ展開」が現在の状態に追随するようになりました。** 従来はツリー内の失敗した実行をすべて開いていたため、古い作業ブランチの失敗が残っているだけで、直近の実行が正常なワークフローまで展開されてしまいました。これからは、失敗した実行がそのワークフローの直近（最新）の実行である場合だけを展開対象にします。ステータスバーの件数や失敗通知が使うのと同じ「直近」の考え方です。古いブランチの失敗は、ツリーにはそのまま残りますが、展開はされません。
+- **ブランチ別ランの並びを新しい順にしました。** ワークフロー配下のブランチ別ランは状態別（失敗→実行中→成功）に並んでいたため、古い失敗が新しい実行より上に来て、時系列として読めませんでした。これからは状態で並べ替えず、更新の新しい順に統一します。Bamboo の結果一覧は従来からこの順序でした。
+- **すべてのブランチ別ランに状態の色が付くようになりました。** 従来は、古い失敗が現在の状態に見えないよう、色を付けるのはワークフローの直近の実行だけで、それ以外は淡色（グレー）にしていました。並びが時系列になったことで、その区別は位置（直近は一番上の行）が担うため、各実行のアイコンが自身の状態の色を持つようになります。
+
 ## [1.0.3] - 2026-11-21
 
 ### Changed

@@ -1,4 +1,4 @@
-import type { RunInfo, RunStatus } from "./types";
+import type { RunStatus } from "./types";
 
 /**
  * Normalise a GitHub Actions status/conclusion pair into the four board
@@ -24,30 +24,5 @@ export function normaliseStatus(status: string | null | undefined, conclusion: s
       return "failure";
     default:
       return "other";
-  }
-}
-
-/**
- * Whether a branch-run row is shown muted (gray). A workflow's status is
- * carried by its newest run overall (WorkflowState.latest); branch runs for
- * other runs — older runs, side branches — do not decide the workflow's
- * current state, so their icons are de-emphasised. When the latest run is
- * unknown (state not fetched yet), nothing is muted.
- */
-export function isMutedRun(latest: RunInfo | undefined, run: RunInfo): boolean {
-  return latest !== undefined && latest.id !== run.id;
-}
-
-/** Sort rank for display: failures first, then running, other, success. */
-export function statusRank(status: RunStatus): number {
-  switch (status) {
-    case "failure":
-      return 0;
-    case "running":
-      return 1;
-    case "other":
-      return 2;
-    case "success":
-      return 3;
   }
 }
