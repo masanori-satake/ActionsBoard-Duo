@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.0] - 2026-11-23
+
+### Changed
+
+- **"Expand failures" now follows the current state.** The failures expansion (the title-bar button, the first-open expansion, and the status-bar click) used to open every failed run anywhere in the tree, so a stale failure on an old side branch pulled its workflow open even when the workflow's newest run was fine. A failed run now counts only when it is its workflow's newest run overall — the same notion the status bar counts and failure notifications already use. Stale branch failures stay in the tree, muted, without expanding anything.
+
+### 日本語
+
+- **「エラーのみ展開」が現在の状態に追随するようになりました。** 従来はツリー内の失敗した実行をすべて開いていたため、古い作業ブランチの失敗が残っているだけで、直近の実行が正常なワークフローまで展開されてしまいました。これからは、失敗した実行がそのワークフローの直近（最新）の実行である場合だけを展開対象にします。ステータスバーの件数や失敗通知が使うのと同じ「直近」の考え方です。古いブランチの失敗は、ツリーに淡色のまま残りますが、展開はされません。
+
 ## [1.0.3] - 2026-11-21
 
 ### Changed

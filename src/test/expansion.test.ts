@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ExpansionEpoch, shouldExpandFailedRun, shouldExpandOnStatusClick } from "../core/expansion";
+import {
+  ExpansionEpoch,
+  isLatestFailure,
+  shouldExpandFailedRun,
+  shouldExpandOnStatusClick,
+} from "../core/expansion";
 import type { StatusBarCounts } from "../core/model";
+import type { RunInfo } from "../core/types";
 
 const counts = (overrides: Partial<StatusBarCounts>): StatusBarCounts => ({
   success: 0,
@@ -41,6 +47,48 @@ test("shouldExpandFailedRun: a failed run confirmed to have no jobs is skipped",
 
 test("shouldExpandFailedRun: an unknown job count (jobs fetch failed) keeps the run", () => {
   assert.equal(shouldExpandFailedRun(null), true);
+});
+
+// ---------- failures expansion set (only the workflow's current failure) ----------
+
+const run = (overrides: Partial<RunInfo>): RunInfo => ({
+  id: 1,
+  name: "CI",
+  branch: "main",
+  status: "success",
+  rawStatus: "completed",
+  conclusion: "success",
+  actorLogin: "masanori-satake",
+  title: "run",
+  event: "push",
+  runNumber: 1,
+  createdAt: "2026-11-23T00:00:00Z",
+  updatedAt: "2026-11-23T00:00:00Z",
+  htmlUrl: "https://example.invalid/run/1",
+  ...overrides,
+});
+
+test("isLatestFailure: the workflow's newest run failed", () => {
+  const failed = run({ id: 10, status: "failure", conclusion: "failure" });
+  assert.equal(isLatestFailure(failed, failed), true);
+});
+
+test("isLatestFailure: a stale branch failure is not current once a newer run exists", () => {
+  const stale = run({ id: 9, status: "failure", conclusion: "failure", branch: "chore/x" });
+  const newerSuccess = run({ id: 10, status: "success" });
+  const newerRunning = run({ id: 10, status: "running", rawStatus: "in_progress", conclusion: null });
+  assert.equal(isLatestFailure(stale, newerSuccess), false);
+  assert.equal(isLatestFailure(stale, newerRunning), false);
+});
+
+test("isLatestFailure: the newest run itself is not a failure", () => {
+  const ok = run({ id: 10, status: "success" });
+  assert.equal(isLatestFailure(ok, ok), false);
+});
+
+test("isLatestFailure: no known newest run means nothing is current", () => {
+  const failed = run({ id: 10, status: "failure", conclusion: "failure" });
+  assert.equal(isLatestFailure(failed, undefined), false);
 });
 
 // ---------- status bar click (open with failures expanded when wrong) ----------

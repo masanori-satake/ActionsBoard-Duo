@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { isLatestFailure } from "./core/expansion";
 import { showsRecoveryMarker } from "./core/liveness";
 import { visibleGroups, workflowIsMine } from "./core/model";
 import { isMutedRun } from "./core/status";
@@ -543,10 +544,19 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     return this.allNodes().filter((n) => n.kind === "run" && n.run && statuses.includes(n.run.status));
   }
 
-  /** Workflow nodes that carry failures anywhere below them. */
-  failureWorkflowNodes(): BoardNode[] {
-    return this.allNodes().filter(
-      (n) => n.kind === "workflow" && (n.children ?? []).some((c) => c.run?.status === "failure"),
-    );
+  /**
+   * Failed runs that are their workflow's newest run overall — the
+   * "failures" expansion set. A stale failure on a side branch (the
+   * workflow's newest run is a different one) does not pull the tree
+   * open; it stays visible, muted, in the branch list.
+   */
+  currentFailureRunNodes(): BoardNode[] {
+    return this.allNodes().filter((n) => {
+      if (n.kind !== "run" || !n.run || !n.account || !n.workflow) {
+        return false;
+      }
+      const state = this.board.states.get(itemKey(n.account.id, n.workflow));
+      return isLatestFailure(n.run, state?.latest);
+    });
   }
 }

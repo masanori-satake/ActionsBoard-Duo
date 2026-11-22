@@ -1,4 +1,5 @@
 import type { StatusBarCounts } from "./model";
+import type { RunInfo } from "./types";
 
 /**
  * Expansion selector for the CI board tree.
@@ -32,6 +33,21 @@ export type ExpansionMode = "failures" | "running" | "all" | "collapsed" | "manu
  */
 export function shouldExpandFailedRun(jobCount: number | null): boolean {
   return jobCount === null || jobCount > 0;
+}
+
+/**
+ * Whether a run is its workflow's current failure: the run failed AND
+ * it is the workflow's newest run overall. A failure on a side branch
+ * that the workflow has since moved past — a newer run exists, whether
+ * it succeeded or is still running — is history, not the current
+ * state, so it stays out of the "failures" expansion set. The tree
+ * already mutes such runs for the same reason, and the status bar
+ * counts and failure notifications likewise key on the newest run.
+ * `latest` is undefined when no newest run is known; nothing counts
+ * as current then.
+ */
+export function isLatestFailure(run: RunInfo, latest: RunInfo | undefined): boolean {
+  return run.status === "failure" && latest !== undefined && latest.id === run.id;
 }
 
 /**

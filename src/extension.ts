@@ -181,7 +181,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     let targets =
       mode === "failures"
-        ? provider.runNodesWith(["failure"])
+        ? provider.currentFailureRunNodes()
         : mode === "running"
           ? provider.runNodesWith(["failure", "running"])
           : provider.runNodesWith(["failure", "running", "other", "success"]);
