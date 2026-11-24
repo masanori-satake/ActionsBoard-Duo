@@ -677,7 +677,7 @@ export class Board implements vscode.Disposable {
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`HTTP ${res.status}`);
       }
-      jobs = parseBambooStages(res.json);
+      jobs = parseBambooStages(res.json, account.baseUrl);
     } else {
       const res = await this.api(account, listJobsUrl(account.baseUrl, item.owner, item.repo, runId));
       if (res.status < 200 || res.status >= 300) {

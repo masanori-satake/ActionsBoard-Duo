@@ -58,6 +58,20 @@ export function bambooBrowseUrl(baseUrl: string, key: string): string {
 }
 
 /**
+ * The page a run or job opens when clicked. The payload's link.href is
+ * the REST self link, which serves the build as XML — useless as a
+ * destination — so the display URL is built from the result key
+ * instead. The link is used only when there is no key and it does not
+ * itself point into the REST API.
+ */
+function bambooDisplayUrl(baseUrl: string, key: string, linkHref: string): string {
+  if (key !== "") {
+    return bambooBrowseUrl(baseUrl, key);
+  }
+  return linkHref.includes("/rest/api/") ? "" : linkHref;
+}
+
+/**
  * Normalise a Bamboo build state pair into the four board statuses.
  * A build that is still alive (InProgress / Queued / Pending) counts as
  * running whatever its (not yet final) build state says; a finished
@@ -208,7 +222,7 @@ export function parseBambooResults(json: unknown, baseUrl: string): RunInfo[] {
       runNumber: num(r.number) ?? num(r.buildNumber) ?? num(r.resultNumber) ?? trailingNumber(key) ?? 0,
       createdAt: started,
       updatedAt: completed !== "" ? completed : started,
-      htmlUrl: str(r.link?.href) || (key !== "" ? bambooBrowseUrl(baseUrl, key) : ""),
+      htmlUrl: bambooDisplayUrl(baseUrl, key, str(r.link?.href)),
     });
   }
   return runs;
@@ -361,9 +375,11 @@ function jobName(r: RawBambooJobResult): string {
  * Parse one build's detail payload (`GET /result/{resultKey}` with
  * `expand=stages.stage.results.result`) into the jobs of its stages,
  * flattened in stage order. Job results carry no step breakdown, so
- * failedStep stays undefined.
+ * failedStep stays undefined. A job's page is the browse URL of its
+ * result key — the payload's link is the REST self link (XML), never
+ * the destination a click should open.
  */
-export function parseBambooStages(json: unknown): JobInfo[] {
+export function parseBambooStages(json: unknown, baseUrl: string): JobInfo[] {
   const stages = asArray((json as { stages?: { stage?: unknown } })?.stages?.stage);
   const jobs: JobInfo[] = [];
   for (const stageItem of stages) {
@@ -380,7 +396,7 @@ export function parseBambooStages(json: unknown): JobInfo[] {
         status: normaliseBambooStatus(buildState, r.lifeCycleState),
         rawStatus: str(r.lifeCycleState),
         conclusion: buildState !== "" ? buildState : null,
-        htmlUrl: str(r.link?.href),
+        htmlUrl: bambooDisplayUrl(baseUrl, str(r.key), str(r.link?.href)),
         startedAt: str(r.buildStartedTime) || null,
         completedAt: str(r.buildCompletedTime) || null,
       });

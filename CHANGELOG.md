@@ -5,10 +5,12 @@
 ### Fixed
 
 - **Bamboo run labels no longer show raw HTML.** A Bamboo server's reason summary is HTML — the author name arrives wrapped in a link to the author page — and the run rows showed that markup verbatim ("Changes by <a href=…>"), hiding who changed what. The summary is now reduced to its text before display, so the rows read "Changes by A. Developer"; escaped entities in names are unescaped as well.
+- **Clicking a Bamboo job (or run) no longer opens the raw XML response.** The payload's link is the REST self link, which serves the build as XML; it was used as the click destination. The destination is now the build's page in the Bamboo web UI, built from the result key.
 
 ### 日本語
 
 - **Bamboo の実行ラベルに HTML がそのまま表示される問題を直しました。** Bamboo サーバが返す実行理由（reasonSummary）は HTML で、変更者名が著者ページへのリンクに包まれて届くため、実行の行に「Changes by <a href=…>」とマークアップがそのまま出て、変更者が分かりませんでした。表示前にテキストだけを取り出すようにしたため、「Changes by ○○」と名前で読めるようになります。名前に含まれるエスケープ済み文字も元に戻します。
+- **Bamboo のジョブ（と実行）をクリックすると XML がそのまま表示されるページに飛ぶ問題を直しました。** 応答に含まれるリンクは REST API 自身の URL で、開くとビルド内容が XML で返ってきます。これをクリック先に使っていたため、画面ではなく XML が開いていました。クリック先を、結果キーから組み立てる Bamboo の画面（browse）の URL に変えました。
 
 ## [1.2.0] - 2026-11-24
 

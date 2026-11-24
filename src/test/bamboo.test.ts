@@ -294,14 +294,16 @@ const DETAIL_PAYLOAD = {
               jobName: "Default Job",
               lifeCycleState: "Finished",
               buildState: "Successful",
-              link: { href: "https://bamboo.example.com/browse/PROJ-PLAN-JOB1-123", rel: "self" },
+              // The real server's link is the REST self link (XML),
+              // not the job's page.
+              link: { href: "https://bamboo.example.com/rest/api/latest/result/PROJ-PLAN-JOB1-123", rel: "self" },
             },
             {
               id: 7002,
               key: "PROJ-PLAN-JOB2-123",
               lifeCycleState: "Finished",
               buildState: "Failed",
-              link: { href: "https://bamboo.example.com/browse/PROJ-PLAN-JOB2-123", rel: "self" },
+              link: { href: "https://bamboo.example.com/rest/api/latest/result/PROJ-PLAN-JOB2-123", rel: "self" },
             },
           ],
         },
@@ -311,16 +313,39 @@ const DETAIL_PAYLOAD = {
 };
 
 test("parseBambooStages: flattens stage results into jobs", () => {
-  const jobs = parseBambooStages(DETAIL_PAYLOAD);
+  const jobs = parseBambooStages(DETAIL_PAYLOAD, BASE);
   assert.equal(jobs.length, 2);
   assert.equal(jobs[0].name, "Default Job");
   assert.equal(jobs[0].status, "success");
+  // The click destination is the browse page built from the result
+  // key, never the REST self link (which serves XML).
   assert.equal(jobs[0].htmlUrl, "https://bamboo.example.com/browse/PROJ-PLAN-JOB1-123");
+  assert.equal(jobs[1].htmlUrl, "https://bamboo.example.com/browse/PROJ-PLAN-JOB2-123");
   // Without a jobName, the job segment of the result key is the label.
   assert.equal(jobs[1].name, "JOB2");
   assert.equal(jobs[1].status, "failure");
-  assert.deepEqual(parseBambooStages({}), []);
-  assert.deepEqual(parseBambooStages({ stages: { stage: [] } }), []);
+  assert.deepEqual(parseBambooStages({}, BASE), []);
+  assert.deepEqual(parseBambooStages({ stages: { stage: [] } }, BASE), []);
+});
+
+test("parseBambooResults: a REST self link is not used as the run's page", () => {
+  const payload = {
+    results: {
+      result: [
+        {
+          key: "PROJ-PLAN-130",
+          plan: { key: "PROJ-PLAN", name: "My Project - My Plan" },
+          buildNumber: 130,
+          lifeCycleState: "Finished",
+          buildState: "Successful",
+          reasonSummary: "Changes by A. Developer",
+          link: { href: "https://bamboo.example.com/rest/api/latest/result/PROJ-PLAN-130", rel: "self" },
+        },
+      ],
+    },
+  };
+  const runs = parseBambooResults(payload, BASE);
+  assert.equal(runs[0].htmlUrl, "https://bamboo.example.com/browse/PROJ-PLAN-130");
 });
 
 test("parseBambooResults: undeterminable ids get distinct negative fallbacks (L8)", () => {
