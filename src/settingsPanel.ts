@@ -1,4 +1,6 @@
+import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
+import { clampIntervalSeconds, sanitiseConfig, toNotificationScope } from "./core/config";
 import { listWorkflowsUrl, normaliseBaseUrl, parseRepoUrl, parseWorkflows } from "./core/github";
 import { isHttpUrlString } from "./core/url";
 import { fetchJson } from "./net";
@@ -193,7 +195,9 @@ export class SettingsPanel {
     const webview = this.panel.webview;
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, "media", "settings.js"));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, "media", "settings.css"));
-    const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    // The CSP nonce must be unpredictable: cryptographic randomness,
+    // not Math.random.
+    const nonce = randomBytes(16).toString("hex");
     return `<!DOCTYPE html>
 <html lang="${isJa() ? "ja" : "en"}">
 <head>
@@ -211,7 +215,7 @@ export class SettingsPanel {
   </div>
   <span id="save-status" role="status"></span>
 </div>
-<script nonce="${nonce}">window.ABD_STRINGS = ${JSON.stringify(STRINGS)};</script>
+<script nonce="${nonce}">window.ABD_STRINGS = ${JSON.stringify(STRINGS).replace(/</g, "\\u003c")};</script>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
@@ -249,8 +253,23 @@ export class SettingsPanel {
         break;
       }
       case "save": {
-        const config = msg.config as AppConfig;
-        const settings = msg.settings as BoardSettings;
+        // The payload crosses the webview boundary, so it is run
+        // through the same sanitisers the read path uses before
+        // anything is written: a malformed value can neither land in
+        // settings.json nor reach the board. The clamps and defaults
+        // mirror readSettings exactly.
+        const config = sanitiseConfig(msg.config);
+        const rawSettings = (msg.settings ?? {}) as Record<string, unknown>;
+        const settings: BoardSettings = {
+          pollVisibleSec: clampIntervalSeconds(rawSettings.pollVisibleSec, 10, 3600, 30),
+          pollHiddenSec: clampIntervalSeconds(rawSettings.pollHiddenSec, 30, 86400, 300),
+          livenessSec: clampIntervalSeconds(rawSettings.livenessSec, 30, 86400, 120),
+          notifyOnFailure: rawSettings.notifyOnFailure !== false,
+          notifyOnOutage: rawSettings.notifyOnOutage !== false,
+          notifyOnRecovery: rawSettings.notifyOnRecovery !== false,
+          notifyOnAuthError: rawSettings.notifyOnAuthError !== false,
+          notificationScope: toNotificationScope(rawSettings.notificationScope),
+        };
         const tokens = (msg.tokens ?? {}) as Record<string, string>;
         const removed = (msg.removedAccountIds ?? []) as string[];
         // Tokens go first: writing the config fires a configuration-change

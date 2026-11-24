@@ -6,6 +6,10 @@
  * redirect:"follow": the Authorization header is re-sent only while the
  * redirect target stays on the same host as the previous URL, so a
  * server-supplied redirect can never carry the token to another host.
+ * Two more redirect rules: a downgrade from https to http also drops
+ * the header (the token must never travel in cleartext), and a target
+ * with a non-http(s) scheme is never followed at all — the 3xx then
+ * surfaces to the caller like any other non-2xx status.
  * Response bodies are capped at 10 MB — a hostile or broken server
  * cannot make the board buffer an unbounded payload.
  */
@@ -133,10 +137,24 @@ export async function fetchJson(
       }
       const res = await fetch(currentUrl, { method: "GET", headers, signal: controller.signal, redirect: "manual" });
       const location = res.headers.get("location");
-      if (!REDIRECT_STATUSES.has(res.status) || !location || hop >= MAX_REDIRECTS) {
-        // Final response (or a redirect we do not follow: no Location,
-        // or the hop budget is spent — the 3xx then surfaces to the
-        // caller like any other non-2xx status).
+      // The redirect target counts only when it parses and stays on
+      // http(s); anything else (file:, a custom scheme, garbage) is
+      // never followed.
+      let next: URL | undefined;
+      if (location) {
+        try {
+          const parsed = new URL(location, currentUrl);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            next = parsed;
+          }
+        } catch {
+          next = undefined;
+        }
+      }
+      if (!REDIRECT_STATUSES.has(res.status) || !next || hop >= MAX_REDIRECTS) {
+        // Final response (or a redirect we do not follow: no usable
+        // Location, or the hop budget is spent — the 3xx then surfaces
+        // to the caller like any other non-2xx status).
         const text = await readBodyCapped(res);
         let json: unknown = null;
         if (text) {
@@ -148,8 +166,11 @@ export async function fetchJson(
         }
         return { status: res.status, json, retryAfterMs: parseRetryAfterMs(res) };
       }
-      const nextUrl = new URL(location, currentUrl).toString();
-      if (!sameHost(currentUrl, nextUrl)) {
+      const nextUrl = next.toString();
+      if (
+        !sameHost(currentUrl, nextUrl) ||
+        (new URL(currentUrl).protocol === "https:" && next.protocol === "http:")
+      ) {
         sendAuth = false;
       }
       currentUrl = nextUrl;
