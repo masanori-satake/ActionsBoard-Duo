@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2] - 2026-11-24
+
+### Fixed
+
+- Security review of the rapid 1.2.0–1.4.1 cycle. Redirect handling in the fetch layer is stricter: the access token is no longer re-sent when a redirect downgrades https to http (previously only a host change dropped it), and redirects to non-http(s) schemes are never followed. The settings webview's CSP nonce now uses cryptographic randomness instead of Math.random, and the settings payload is run through the same sanitisers as the read path before anything is written to settings. No behaviour changes otherwise; tokens remain in SecretStorage only, and the extension still ships with no runtime dependencies.
+
+- 1.2.0〜1.4.1 の急速なサイクルに対するセキュリティレビューと改修です。通信のリダイレクト処理を厳しくしました。https から http へのダウングレード時にもアクセストークンを送らなくなり（従来はホストが変わった場合のみ停止）、http(s) 以外のスキームへのリダイレクトはたどらなくなりました。設定画面の CSP nonce は Math.random ではなく暗号学的な乱数で生成し、保存時のデータは読み取り側と同じ検証を通してから settings に書きます。その他の挙動は変わりません。トークンは引き続き SecretStorage のみに置かれ、実行時依存もゼロのままです。
+
 ## [1.4.1] - 2026-11-24
 
 ### Changed
