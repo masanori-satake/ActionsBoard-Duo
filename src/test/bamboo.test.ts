@@ -7,6 +7,7 @@ import {
   bambooPlanCount,
   bambooPlansUrl,
   bambooProjectsUrl,
+  bambooReasonText,
   bambooResultDetailUrl,
   bambooResultsUrl,
   normaliseBambooBaseUrl,
@@ -131,6 +132,46 @@ test("parseBambooResults: maps the documented list shape", () => {
   assert.equal(ok.status, "success");
   assert.equal(ok.id, 121); // id derived from the key's trailing number
   assert.equal(ok.htmlUrl, "https://bamboo.example.com/browse/PROJ-PLAN-121"); // browse URL fallback
+});
+
+test("parseBambooResults: reasonSummary HTML is reduced to its text (real-server shape)", () => {
+  // A real Bamboo server wraps the author name in a link (two shapes
+  // seen: authors/viewAuthor.action and users/viewUserSummary.action);
+  // the run label must show the name, not the markup.
+  const payload = {
+    results: {
+      result: [
+        {
+          key: "PROJ-PLAN-124",
+          plan: { key: "PROJ-PLAN", name: "My Project - My Plan" },
+          buildNumber: 124,
+          lifeCycleState: "Finished",
+          buildState: "Failed",
+          reasonSummary:
+            'Changes by <a href="https://bamboo.example.com/authors/viewAuthor.action?authorName=adev">A. Developer</a>',
+        },
+        {
+          key: "PROJ-PLAN-125",
+          plan: { key: "PROJ-PLAN", name: "My Project - My Plan" },
+          buildNumber: 125,
+          lifeCycleState: "Finished",
+          buildState: "Failed",
+          reasonSummary:
+            'Changes by <a href="https://bamboo.example.com/users/viewUserSummary.action?currentUser=adev">A. Developer</a> and <a href="https://bamboo.example.com/authors/viewAuthor.action?authorName=bdev">B. Developer</a>',
+        },
+      ],
+    },
+  };
+  const runs = parseBambooResults(payload, BASE);
+  assert.equal(runs[0].title, "Changes by A. Developer");
+  assert.equal(runs[1].title, "Changes by A. Developer and B. Developer");
+});
+
+test("bambooReasonText: unescapes entities and leaves plain text alone", () => {
+  assert.equal(bambooReasonText("Changes by A. Developer"), "Changes by A. Developer");
+  assert.equal(bambooReasonText("Changes by A &amp; B"), "Changes by A & B");
+  assert.equal(bambooReasonText("Manual run by &quot;Admin&quot; &#8212; retry"), 'Manual run by "Admin" — retry');
+  assert.equal(bambooReasonText(""), "");
 });
 
 test("parseBambooResults: a single result object is wrapped, junk yields []", () => {

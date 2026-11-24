@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.1] - 2026-11-24
+
+### Fixed
+
+- **Bamboo run labels no longer show raw HTML.** A Bamboo server's reason summary is HTML — the author name arrives wrapped in a link to the author page — and the run rows showed that markup verbatim ("Changes by <a href=…>"), hiding who changed what. The summary is now reduced to its text before display, so the rows read "Changes by A. Developer"; escaped entities in names are unescaped as well.
+
+### 日本語
+
+- **Bamboo の実行ラベルに HTML がそのまま表示される問題を直しました。** Bamboo サーバが返す実行理由（reasonSummary）は HTML で、変更者名が著者ページへのリンクに包まれて届くため、実行の行に「Changes by <a href=…>」とマークアップがそのまま出て、変更者が分かりませんでした。表示前にテキストだけを取り出すようにしたため、「Changes by ○○」と名前で読めるようになります。名前に含まれるエスケープ済み文字も元に戻します。
+
 ## [1.2.0] - 2026-11-24
 
 ### Changed
