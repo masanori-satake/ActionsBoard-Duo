@@ -6,6 +6,7 @@ import {
   bambooInfoUrl,
   bambooPlanCount,
   bambooPlanBranchesUrl,
+  bambooPlanDetailUrl,
   bambooPlansUrl,
   bambooProjectsUrl,
   bambooReasonText,
@@ -15,6 +16,7 @@ import {
   normaliseBambooStatus,
   parseBambooCurrentUser,
   parseBambooPlanBranches,
+  parseBambooPlanJobs,
   parseBambooPlanName,
   parseBambooPlans,
   parseBambooProjects,
@@ -421,4 +423,92 @@ test("bambooPlanCount: counts raw entries before parsing drops any (E6)", () => 
   assert.equal(bambooPlanCount({ plans: { plan: { key: "P-A" } } }), 1);
   assert.equal(bambooPlanCount({}), 0);
   assert.equal(bambooPlanCount(null), 0);
+});
+
+// ---------- plan definition job names ----------
+
+const PLAN_DETAIL_PAYLOAD = {
+  key: "PROJ-PLAN",
+  name: "Plan",
+  stages: {
+    size: 2,
+    stage: [
+      {
+        name: "Default Stage",
+        jobs: {
+          size: 2,
+          job: [
+            { key: "PROJ-PLAN-JOB1", name: "Default Job" },
+            { key: "PROJ-PLAN-JOB2", name: "Unit Tests" },
+          ],
+        },
+      },
+      {
+        name: "Second Stage",
+        jobs: {
+          size: 2,
+          job: [
+            { key: "PROJ-PLAN-JOB3", name: "Package" },
+            { key: "PROJ-PLAN-JOB4" },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+test("bambooPlanDetailUrl: expands the plan's stages and jobs", () => {
+  assert.equal(
+    bambooPlanDetailUrl(BASE, "PROJ-PLAN"),
+    "https://bamboo.example.com/rest/api/latest/plan/PROJ-PLAN?expand=stages.stage.jobs.job",
+  );
+});
+
+test("parseBambooPlanJobs: maps job keys to definition names across stages", () => {
+  assert.deepEqual(parseBambooPlanJobs(PLAN_DETAIL_PAYLOAD), {
+    "PROJ-PLAN-JOB1": "Default Job",
+    "PROJ-PLAN-JOB2": "Unit Tests",
+    "PROJ-PLAN-JOB3": "Package",
+  });
+  // The nameless job is skipped, and junk yields an empty map.
+  assert.deepEqual(parseBambooPlanJobs({}), {});
+  assert.deepEqual(parseBambooPlanJobs(null), {});
+  assert.deepEqual(parseBambooPlanJobs({ stages: { stage: [] } }), {});
+});
+
+test("parseBambooStages: job names resolve from the plan definition", () => {
+  const names = parseBambooPlanJobs(PLAN_DETAIL_PAYLOAD);
+  const jobs = parseBambooStages(DETAIL_PAYLOAD, BASE, names);
+  // A jobName carried by the result payload still wins.
+  assert.equal(jobs[0].name, "Default Job");
+  // Without one, the definition's name replaces the JOB2 key segment.
+  assert.equal(jobs[1].name, "Unit Tests");
+  // And with no map at all, the old key-segment fallback is unchanged.
+  assert.equal(parseBambooStages(DETAIL_PAYLOAD, BASE)[1].name, "JOB2");
+  assert.equal(parseBambooStages(DETAIL_PAYLOAD, BASE, {})[1].name, "JOB2");
+});
+
+test("parseBambooStages: a carried jobKey also resolves through the definition", () => {
+  const payload = {
+    stages: {
+      stage: [
+        {
+          results: {
+            result: [
+              {
+                id: 7003,
+                key: "PROJ-PLAN-JOB2-124",
+                jobKey: "PROJ-PLAN-JOB2",
+                lifeCycleState: "Finished",
+                buildState: "Successful",
+                link: { href: "https://bamboo.example.com/rest/api/latest/result/PROJ-PLAN-JOB2-124", rel: "self" },
+              },
+            ],
+          },
+        },
+      ],
+    },
+  };
+  const jobs = parseBambooStages(payload, BASE, { "PROJ-PLAN-JOB2": "Unit Tests" });
+  assert.equal(jobs[0].name, "Unit Tests");
 });

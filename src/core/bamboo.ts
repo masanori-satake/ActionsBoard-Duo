@@ -64,6 +64,11 @@ export function bambooResultDetailUrl(baseUrl: string, resultKey: string): strin
   return `${restUrl(baseUrl, `result/${encodeURIComponent(resultKey)}`)}?expand=stages.stage.results.result`;
 }
 
+/** One plan's definition, with its stages' jobs expanded — the source of job display names. */
+export function bambooPlanDetailUrl(baseUrl: string, planKey: string): string {
+  return `${restUrl(baseUrl, `plan/${encodeURIComponent(planKey)}`)}?expand=stages.stage.jobs.job`;
+}
+
 /** The build's (or plan's) page in the Bamboo web UI. */
 export function bambooBrowseUrl(baseUrl: string, key: string): string {
   return `${normaliseBambooBaseUrl(baseUrl)}/browse/${encodeURIComponent(key)}`;
@@ -417,13 +422,36 @@ interface RawBambooJobResult {
   link?: { href?: string };
 }
 
-/** Display name for a job result: its job name when carried, else the job segment of its key. */
-function jobName(r: RawBambooJobResult): string {
+/**
+ * The full job key of a job result: the jobKey field when carried,
+ * else the result key (PROJECT-PLAN-JOB1-123) without its trailing
+ * build number.
+ */
+function fullJobKey(r: RawBambooJobResult): string {
+  const jobKey = str(r.jobKey);
+  if (jobKey !== "") {
+    return jobKey;
+  }
+  const key = str(r.key);
+  const m = key.match(/^(.*)-\d+$/);
+  return m ? m[1] : key;
+}
+
+/**
+ * Display name for a job result: its job name when the payload
+ * carries one, else the name the plan definition gives the job,
+ * else the job segment of its key.
+ */
+function jobName(r: RawBambooJobResult, jobNames?: Record<string, string>): string {
   if (typeof r.jobName === "string" && r.jobName !== "") {
     return r.jobName;
   }
   if (typeof r.name === "string" && r.name !== "") {
     return r.name;
+  }
+  const fromDefinition = jobNames?.[fullJobKey(r)];
+  if (typeof fromDefinition === "string" && fromDefinition !== "") {
+    return fromDefinition;
   }
   const key = str(r.jobKey) || str(r.key);
   if (key === "") {
@@ -439,6 +467,30 @@ function jobName(r: RawBambooJobResult): string {
 }
 
 /**
+ * Parse one plan's definition (`GET /plan/{planKey}` with
+ * `expand=stages.stage.jobs.job`) into a job key → display name map.
+ * Entries without a key or a name are skipped; anything unexpected
+ * yields an empty map, and callers fall back to the result payload's
+ * own naming.
+ */
+export function parseBambooPlanJobs(json: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  const stages = asArray((json as { stages?: { stage?: unknown } })?.stages?.stage);
+  for (const stageItem of stages) {
+    const jobs = asArray((stageItem as { jobs?: { job?: unknown } })?.jobs?.job);
+    for (const jobItem of jobs) {
+      const job = jobItem as { key?: unknown; name?: unknown };
+      const key = str(job?.key);
+      const name = str(job?.name);
+      if (key !== "" && name !== "") {
+        out[key] = name;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Parse one build's detail payload (`GET /result/{resultKey}` with
  * `expand=stages.stage.results.result`) into the jobs of its stages,
  * flattened in stage order. Job results carry no step breakdown, so
@@ -446,7 +498,7 @@ function jobName(r: RawBambooJobResult): string {
  * result key — the payload's link is the REST self link (XML), never
  * the destination a click should open.
  */
-export function parseBambooStages(json: unknown, baseUrl: string): JobInfo[] {
+export function parseBambooStages(json: unknown, baseUrl: string, jobNames?: Record<string, string>): JobInfo[] {
   const stages = asArray((json as { stages?: { stage?: unknown } })?.stages?.stage);
   const jobs: JobInfo[] = [];
   for (const stageItem of stages) {
@@ -459,7 +511,7 @@ export function parseBambooStages(json: unknown, baseUrl: string): JobInfo[] {
       const buildState = str(r.buildState) || str(r.state);
       jobs.push({
         id: num(r.id) ?? trailingNumber(str(r.key)) ?? jobs.length,
-        name: jobName(r),
+        name: jobName(r, jobNames),
         status: normaliseBambooStatus(buildState, r.lifeCycleState),
         rawStatus: str(r.lifeCycleState),
         conclusion: buildState !== "" ? buildState : null,
