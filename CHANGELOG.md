@@ -1,6 +1,10 @@
 # Changelog
 
-## [1.2.1] - 2026-11-24
+## [1.3.0] - 2026-11-24
+
+### Added
+
+- **A project pulldown filters the Bamboo plan picker.** When a server has many projects, the "Add from server" list now starts with a pulldown that narrows the list to one project (or back to all). Filtering only hides rows — ticks already placed in other projects stay in place, and "Add selected" still adds every ticked plan.
 
 ### Fixed
 
@@ -9,6 +13,7 @@
 
 ### 日本語
 
+- **Bamboo のプラン一覧をプロジェクトで絞り込めるようにしました。** プロジェクトが多いサーバでは、目的のプロジェクトまでスクロールするのが大変でした。「サーバから追加」の一覧の先頭にプルダウンを置き、1つのプロジェクトだけを表示できます。絞り込みは行を隠すだけなので、他のプロジェクトで付けたチェックはそのまま残り、「選択したものを追加」はチェックしたもの全てを追加します。
 - **Bamboo の実行ラベルに HTML がそのまま表示される問題を直しました。** Bamboo サーバが返す実行理由（reasonSummary）は HTML で、変更者名が著者ページへのリンクに包まれて届くため、実行の行に「Changes by <a href=…>」とマークアップがそのまま出て、変更者が分かりませんでした。表示前にテキストだけを取り出すようにしたため、「Changes by ○○」と名前で読めるようになります。名前に含まれるエスケープ済み文字も元に戻します。
 - **Bamboo のジョブ（と実行）をクリックすると XML がそのまま表示されるページに飛ぶ問題を直しました。** 応答に含まれるリンクは REST API 自身の URL で、開くとビルド内容が XML で返ってきます。これをクリック先に使っていたため、画面ではなく XML が開いていました。クリック先を、結果キーから組み立てる Bamboo の画面（browse）の URL に変えました。
 

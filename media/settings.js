@@ -419,7 +419,7 @@
     };
     for (const p of items) {
       if (!current || current.key !== p.projectKey) {
-        const proj = { key: p.projectKey, cb: null, planChecks: [] };
+        const proj = { key: p.projectKey, name: p.projectName, cb: null, planChecks: [], rows: [] };
         proj.cb = h("input", {
           type: "checkbox",
           onchange: () => {
@@ -432,9 +432,14 @@
         });
         projects.push(proj);
         current = proj;
-        children.push(
-          h("label", { class: "inline checklist-group" }, proj.cb, `${p.projectName} (${p.projectKey})`),
+        const heading = h(
+          "label",
+          { class: "inline checklist-group" },
+          proj.cb,
+          `${p.projectName} (${p.projectKey})`,
         );
+        proj.rows.push(heading);
+        children.push(heading);
       }
       const proj = current;
       const already = group.workflows.some((w) => w.planKey === p.planKey);
@@ -446,10 +451,33 @@
       checks.push(entry);
       proj.planChecks.push(entry);
       cb.addEventListener("change", () => syncProject(proj));
-      children.push(h("label", { class: "inline" }, cb, `${p.name} (${p.planKey})`));
+      const row = h("label", { class: "inline" }, cb, `${p.name} (${p.planKey})`);
+      proj.rows.push(row);
+      children.push(row);
     }
     for (const proj of projects) {
       syncProject(proj);
+    }
+    // With many projects on the server, reaching the wanted one takes
+    // scrolling; a pulldown narrows the list to one project. Rows are
+    // only hidden, never rebuilt, so ticks survive switching back and
+    // forth, and Add still takes every ticked plan, hidden or not.
+    if (projects.length > 1) {
+      const filter = h("select", {
+        onchange: () => {
+          for (const proj of projects) {
+            const show = filter.value === "" || proj.key === filter.value;
+            for (const row of proj.rows) {
+              row.style.display = show ? "" : "none";
+            }
+          }
+        },
+      });
+      filter.appendChild(h("option", { value: "" }, S.allProjects));
+      for (const proj of projects) {
+        filter.appendChild(h("option", { value: proj.key }, `${proj.name} (${proj.key})`));
+      }
+      children.unshift(filter);
     }
     const addBtn = h(
       "button",
