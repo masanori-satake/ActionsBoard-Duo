@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.0] - 2026-11-24
+
+### Changed
+
+- **Bamboo plan picker: nothing starts ticked, and a project checkbox ticks all its plans.** In the settings form's "Add from server" list, every plan used to arrive ticked, so on a server with many projects and plans the unwanted majority had to be unticked one by one. Plans now start unticked. Each project heading carries a checkbox that ticks (or unticks) every plan under that project at once, and the project box mirrors its plans — ticked when all are, indeterminate when some are. Plans already in the group still show ticked and disabled.
+
+### 日本語
+
+- **Bamboo のプラン選択で、初期状態を未チェックにし、プロジェクト単位でまとめてチェックできるようにしました。** 設定フォームの「サーバから追加」の一覧では、従来は全プランにチェックが入った状態で表示されていたため、プロジェクトやプランが多いサーバでは不要なもののチェックを一つずつ外す手間がありました。これからは初期状態ではチェックが入っておらず、プロジェクト名の前のチェックボックスで、そのプロジェクト配下のプランをまとめてチェック／解除できます。プロジェクト側のチェックボックスは配下の状態を映し、一部だけチェックされているときは中間状態で表示されます。すでに追加済みのプランは、従来どおりチェック済み・無効の表示です。
+
 ## [1.1.0] - 2026-11-23
 
 ### Changed
