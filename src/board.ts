@@ -3,6 +3,7 @@ import {
   bambooCurrentUserUrl,
   bambooPlanBranchesUrl,
   bambooPlanCount,
+  bambooPlanDetailUrl,
   bambooPlansUrl,
   bambooProjectsUrl,
   bambooResultDetailUrl,
@@ -11,6 +12,7 @@ import {
   BAMBOO_PLANS_PAGE_SIZE,
   parseBambooCurrentUser,
   parseBambooPlanBranches,
+  parseBambooPlanJobs,
   parseBambooPlanName,
   parseBambooPlans,
   parseBambooProjects,
@@ -555,6 +557,7 @@ export class Board implements vscode.Disposable {
         // earlier poll captured.
         workflowName: parseWorkflowName(res.json) ?? prev?.workflowName,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         fetchedAt: Date.now(),
       };
       this.states.set(key, next);
@@ -570,6 +573,7 @@ export class Board implements vscode.Disposable {
         workflowName: prev?.workflowName,
         planName: prev?.planName,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         error: message,
         fetchedAt: prev?.fetchedAt,
       });
@@ -598,6 +602,7 @@ export class Board implements vscode.Disposable {
         planName: parseBambooPlanName(res.json) ?? prev?.planName,
         branches,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         fetchedAt: Date.now(),
       };
       this.states.set(key, next);
@@ -613,6 +618,7 @@ export class Board implements vscode.Disposable {
         planName: prev?.planName,
         branches: prev?.branches,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         error: message,
         fetchedAt: prev?.fetchedAt,
       });
@@ -664,6 +670,7 @@ export class Board implements vscode.Disposable {
             runs,
             latest: runs[0],
             jobsByRun: prevBranch?.jobsByRun ?? {},
+            jobNames: prevBranch?.jobNames,
           };
         } catch {
           return (
@@ -727,7 +734,8 @@ export class Board implements vscode.Disposable {
       // carry the job results. Polling never fans out per build. The
       // build may belong to the master plan or to one of its branch
       // plans; each keeps its own jobs cache.
-      let owner: { jobsByRun: Record<number, JobInfo[]> } | undefined = state;
+      let owner: { jobsByRun: Record<number, JobInfo[]>; jobNames?: Record<string, string> } | undefined = state;
+      let ownerPlanKey = item.planKey;
       let run = state?.runs.find((r) => r.id === runId);
       if (!run) {
         for (const branch of state?.branches ?? []) {
@@ -735,6 +743,7 @@ export class Board implements vscode.Disposable {
           if (found) {
             run = found;
             owner = branch;
+            ownerPlanKey = branch.planKey;
             break;
           }
         }
@@ -746,11 +755,39 @@ export class Board implements vscode.Disposable {
       if (!run?.key) {
         return [];
       }
+      // Job results often carry no display name, only the job key
+      // (JOB1 and friends). The plan definition names its jobs, so
+      // fetch it once per plan and resolve names from it. A failure
+      // here must never block the jobs themselves: the key-segment
+      // fallback still applies.
+      if (owner && owner.jobNames === undefined) {
+        let names: Record<string, string> = {};
+        try {
+          const planRes = await this.api(account, bambooPlanDetailUrl(account.baseUrl, ownerPlanKey));
+          if (planRes.status >= 200 && planRes.status < 300) {
+            names = parseBambooPlanJobs(planRes.json);
+          }
+        } catch {
+          // Keep the empty map: names are an enhancement only.
+        }
+        owner.jobNames = names;
+        // A poll may have swapped the state object while the request
+        // was in flight; mirror the map onto the live owner so the
+        // next rebuild carries it over instead of refetching.
+        const live = this.states.get(key);
+        if (live && live !== state) {
+          const liveOwner =
+            ownerPlanKey === item.planKey ? live : live.branches?.find((b) => b.planKey === ownerPlanKey);
+          if (liveOwner && liveOwner.jobNames === undefined) {
+            liveOwner.jobNames = names;
+          }
+        }
+      }
       const res = await this.api(account, bambooResultDetailUrl(account.baseUrl, run.key));
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`HTTP ${res.status}`);
       }
-      const jobs = parseBambooStages(res.json, account.baseUrl);
+      const jobs = parseBambooStages(res.json, account.baseUrl, owner?.jobNames);
       if (owner) {
         owner.jobsByRun[runId] = jobs;
       }

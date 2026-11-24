@@ -126,6 +126,12 @@ export interface PlanBranchState {
   latest?: RunInfo;
   /** Jobs fetched lazily per run id, within this branch. */
   jobsByRun: Record<number, JobInfo[]>;
+  /**
+   * Job key → display name from the branch plan's definition,
+   * fetched lazily with the first job expansion. Undefined until
+   * that fetch; an empty record means it failed or defined none.
+   */
+  jobNames?: Record<string, string>;
 }
 
 /** Runtime state for one watched workflow. */
@@ -158,6 +164,12 @@ export interface WorkflowState {
   branches?: PlanBranchState[];
   /** Jobs fetched lazily per run id. */
   jobsByRun: Record<number, JobInfo[]>;
+  /**
+   * Bamboo only: job key → display name from the plan definition,
+   * fetched lazily with the first job expansion. Undefined until
+   * that fetch; an empty record means it failed or defined none.
+   */
+  jobNames?: Record<string, string>;
   /** Last fetch error message, if the last fetch failed at workflow level. */
   error?: string;
   fetchedAt?: number;

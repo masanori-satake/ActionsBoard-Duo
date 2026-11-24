@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0] - 2026-11-24
+
+### Added
+
+- Bamboo job names now come from the plan definition. A build's job results often carry no display name, so jobs were labelled with the raw job segment of their result key (JOB1, JOB2, …), which says nothing about what the job does. When a build is expanded, the board now also fetches the owning plan's definition once (branch plans use their own definition) and labels each job with the name defined there. A name carried by the result payload itself still wins, and when the definition cannot be fetched the previous key-segment label remains. GitHub Actions jobs are unchanged.
+
+- Bamboo のジョブ名をプラン定義から取るようにしました。ビルドのジョブ結果には表示名が含まれないことが多く、結果キーのジョブ部分（JOB1、JOB2 など）がそのまま表示され、ジョブの内容が分かりませんでした。ビルドを展開したとき、そのプランの定義（ブランチプランはブランチ側の定義）を1回だけ取得し、定義に付けられた名前でジョブを表示します。結果の応答自体に名前がある場合はそちらを優先し、定義を取得できなかった場合は従来どおりキーの表示に戻ります。GitHub Actions のジョブ表示は変わりません。
+
 ## [1.4.2] - 2026-11-24
 
 ### Fixed
