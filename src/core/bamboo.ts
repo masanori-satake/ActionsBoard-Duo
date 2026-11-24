@@ -64,9 +64,14 @@ export function bambooResultDetailUrl(baseUrl: string, resultKey: string): strin
   return `${restUrl(baseUrl, `result/${encodeURIComponent(resultKey)}`)}?expand=stages.stage.results.result`;
 }
 
-/** One plan's definition, with its stages' jobs expanded — the source of job display names. */
+/**
+ * One plan's definition, with each stage's jobs expanded — the
+ * source of job display names. In Bamboo's model a job is itself a
+ * plan, so a stage's jobs are its `plans` collection, not a `jobs`
+ * one (RestStage's only expandable collection is `plans`).
+ */
 export function bambooPlanDetailUrl(baseUrl: string, planKey: string): string {
-  return `${restUrl(baseUrl, `plan/${encodeURIComponent(planKey)}`)}?expand=stages.stage.jobs.job`;
+  return `${restUrl(baseUrl, `plan/${encodeURIComponent(planKey)}`)}?expand=stages.stage.plans.plan`;
 }
 
 /** The build's (or plan's) page in the Bamboo web UI. */
@@ -468,18 +473,24 @@ function jobName(r: RawBambooJobResult, jobNames?: Record<string, string>): stri
 
 /**
  * Parse one plan's definition (`GET /plan/{planKey}` with
- * `expand=stages.stage.jobs.job`) into a job key → display name map.
- * Entries without a key or a name are skipped; anything unexpected
- * yields an empty map, and callers fall back to the result payload's
- * own naming.
+ * `expand=stages.stage.plans.plan`) into a job key → display name
+ * map. A stage's jobs arrive as its `plans.plan` entries (a job is
+ * a plan in Bamboo's model); a `jobs.job` collection is also read,
+ * in case a server spells it that way. Entries without a key or a
+ * name are skipped; anything unexpected yields an empty map, and
+ * callers fall back to the result payload's own naming.
  */
 export function parseBambooPlanJobs(json: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   const stages = asArray((json as { stages?: { stage?: unknown } })?.stages?.stage);
   for (const stageItem of stages) {
-    const jobs = asArray((stageItem as { jobs?: { job?: unknown } })?.jobs?.job);
-    for (const jobItem of jobs) {
-      const job = jobItem as { key?: unknown; name?: unknown };
+    const stage = stageItem as {
+      plans?: { plan?: unknown };
+      jobs?: { job?: unknown };
+    };
+    const entries = [...asArray(stage?.plans?.plan), ...asArray(stage?.jobs?.job)];
+    for (const entry of entries) {
+      const job = entry as { key?: unknown; name?: unknown };
       const key = str(job?.key);
       const name = str(job?.name);
       if (key !== "" && name !== "") {

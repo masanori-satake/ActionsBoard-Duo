@@ -557,6 +557,7 @@ export class Board implements vscode.Disposable {
         // earlier poll captured.
         workflowName: parseWorkflowName(res.json) ?? prev?.workflowName,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         fetchedAt: Date.now(),
       };
       this.states.set(key, next);
@@ -572,6 +573,7 @@ export class Board implements vscode.Disposable {
         workflowName: prev?.workflowName,
         planName: prev?.planName,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         error: message,
         fetchedAt: prev?.fetchedAt,
       });
@@ -600,6 +602,7 @@ export class Board implements vscode.Disposable {
         planName: parseBambooPlanName(res.json) ?? prev?.planName,
         branches,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         fetchedAt: Date.now(),
       };
       this.states.set(key, next);
@@ -615,6 +618,7 @@ export class Board implements vscode.Disposable {
         planName: prev?.planName,
         branches: prev?.branches,
         jobsByRun: prev?.jobsByRun ?? {},
+        jobNames: prev?.jobNames,
         error: message,
         fetchedAt: prev?.fetchedAt,
       });
@@ -666,6 +670,7 @@ export class Board implements vscode.Disposable {
             runs,
             latest: runs[0],
             jobsByRun: prevBranch?.jobsByRun ?? {},
+            jobNames: prevBranch?.jobNames,
           };
         } catch {
           return (
@@ -766,6 +771,17 @@ export class Board implements vscode.Disposable {
           // Keep the empty map: names are an enhancement only.
         }
         owner.jobNames = names;
+        // A poll may have swapped the state object while the request
+        // was in flight; mirror the map onto the live owner so the
+        // next rebuild carries it over instead of refetching.
+        const live = this.states.get(key);
+        if (live && live !== state) {
+          const liveOwner =
+            ownerPlanKey === item.planKey ? live : live.branches?.find((b) => b.planKey === ownerPlanKey);
+          if (liveOwner && liveOwner.jobNames === undefined) {
+            liveOwner.jobNames = names;
+          }
+        }
       }
       const res = await this.api(account, bambooResultDetailUrl(account.baseUrl, run.key));
       if (res.status < 200 || res.status >= 300) {

@@ -427,6 +427,8 @@ test("bambooPlanCount: counts raw entries before parsing drops any (E6)", () => 
 
 // ---------- plan definition job names ----------
 
+// A job is a plan in Bamboo's model, so a stage's jobs arrive as
+// its `plans.plan` entries (RestStage has no `jobs` collection).
 const PLAN_DETAIL_PAYLOAD = {
   key: "PROJ-PLAN",
   name: "Plan",
@@ -435,9 +437,9 @@ const PLAN_DETAIL_PAYLOAD = {
     stage: [
       {
         name: "Default Stage",
-        jobs: {
+        plans: {
           size: 2,
-          job: [
+          plan: [
             { key: "PROJ-PLAN-JOB1", name: "Default Job" },
             { key: "PROJ-PLAN-JOB2", name: "Unit Tests" },
           ],
@@ -445,9 +447,9 @@ const PLAN_DETAIL_PAYLOAD = {
       },
       {
         name: "Second Stage",
-        jobs: {
+        plans: {
           size: 2,
-          job: [
+          plan: [
             { key: "PROJ-PLAN-JOB3", name: "Package" },
             { key: "PROJ-PLAN-JOB4" },
           ],
@@ -460,7 +462,7 @@ const PLAN_DETAIL_PAYLOAD = {
 test("bambooPlanDetailUrl: expands the plan's stages and jobs", () => {
   assert.equal(
     bambooPlanDetailUrl(BASE, "PROJ-PLAN"),
-    "https://bamboo.example.com/rest/api/latest/plan/PROJ-PLAN?expand=stages.stage.jobs.job",
+    "https://bamboo.example.com/rest/api/latest/plan/PROJ-PLAN?expand=stages.stage.plans.plan",
   );
 });
 
@@ -474,6 +476,21 @@ test("parseBambooPlanJobs: maps job keys to definition names across stages", () 
   assert.deepEqual(parseBambooPlanJobs({}), {});
   assert.deepEqual(parseBambooPlanJobs(null), {});
   assert.deepEqual(parseBambooPlanJobs({ stages: { stage: [] } }), {});
+});
+
+test("parseBambooPlanJobs: a jobs.job spelling is read too", () => {
+  const payload = {
+    stages: {
+      stage: [
+        {
+          jobs: {
+            job: [{ key: "PROJ-PLAN-JOB1", name: "Default Job" }],
+          },
+        },
+      ],
+    },
+  };
+  assert.deepEqual(parseBambooPlanJobs(payload), { "PROJ-PLAN-JOB1": "Default Job" });
 });
 
 test("parseBambooStages: job names resolve from the plan definition", () => {
