@@ -399,24 +399,57 @@
       container.replaceChildren(h("span", { class: "hint" }, S.noPlans));
       return;
     }
-    // The payload arrives sorted by project, then plan: a heading per
-    // project, one checkbox per plan. Plans already in the group are
-    // shown ticked and disabled, and adding never duplicates a plan.
+    // The payload arrives sorted by project, then plan. Nothing starts
+    // ticked: on a server with many projects and plans, unticking the
+    // unwanted majority was the pain. Each project heading carries a
+    // checkbox that ticks (or unticks) every plan under it at once, and
+    // the project box mirrors its plans — ticked when all are,
+    // indeterminate when some are. Plans already in the group are shown
+    // ticked and disabled, and adding never duplicates a plan.
     const children = [];
     const checks = [];
-    let lastProject = null;
+    const projects = [];
+    let current = null; // { cb, planChecks } of the project being built
+    const syncProject = (proj) => {
+      const selectable = proj.planChecks.filter((c) => !c.already);
+      const ticked = selectable.filter((c) => c.cb.checked).length;
+      proj.cb.checked = selectable.length > 0 && ticked === selectable.length;
+      proj.cb.indeterminate = ticked > 0 && ticked < selectable.length;
+      proj.cb.disabled = selectable.length === 0;
+    };
     for (const p of items) {
-      if (p.projectKey !== lastProject) {
-        children.push(h("h4", { class: "checklist-group" }, `${p.projectName} (${p.projectKey})`));
-        lastProject = p.projectKey;
+      if (!current || current.key !== p.projectKey) {
+        const proj = { key: p.projectKey, cb: null, planChecks: [] };
+        proj.cb = h("input", {
+          type: "checkbox",
+          onchange: () => {
+            for (const c of proj.planChecks) {
+              if (!c.already) {
+                c.cb.checked = proj.cb.checked;
+              }
+            }
+          },
+        });
+        projects.push(proj);
+        current = proj;
+        children.push(
+          h("label", { class: "inline checklist-group" }, proj.cb, `${p.projectName} (${p.projectKey})`),
+        );
       }
+      const proj = current;
       const already = group.workflows.some((w) => w.planKey === p.planKey);
-      const cb = h("input", { type: "checkbox", checked: true });
+      const cb = h("input", { type: "checkbox", checked: already });
       if (already) {
         cb.disabled = true;
       }
-      checks.push({ p, cb, already });
+      const entry = { p, cb, already };
+      checks.push(entry);
+      proj.planChecks.push(entry);
+      cb.addEventListener("change", () => syncProject(proj));
       children.push(h("label", { class: "inline" }, cb, `${p.name} (${p.planKey})`));
+    }
+    for (const proj of projects) {
+      syncProject(proj);
     }
     const addBtn = h(
       "button",
