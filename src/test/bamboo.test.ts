@@ -5,6 +5,7 @@ import {
   bambooCurrentUserUrl,
   bambooInfoUrl,
   bambooPlanCount,
+  bambooPlanBranchesUrl,
   bambooPlansUrl,
   bambooProjectsUrl,
   bambooReasonText,
@@ -13,6 +14,7 @@ import {
   normaliseBambooBaseUrl,
   normaliseBambooStatus,
   parseBambooCurrentUser,
+  parseBambooPlanBranches,
   parseBambooPlanName,
   parseBambooPlans,
   parseBambooProjects,
@@ -346,6 +348,44 @@ test("parseBambooResults: a REST self link is not used as the run's page", () =>
   };
   const runs = parseBambooResults(payload, BASE);
   assert.equal(runs[0].htmlUrl, "https://bamboo.example.com/browse/PROJ-PLAN-130");
+});
+
+test("bambooPlanBranchesUrl: targets the plan's branch list", () => {
+  assert.equal(
+    bambooPlanBranchesUrl(BASE, "PROJ-PLAN"),
+    "https://bamboo.example.com/rest/api/latest/plan/PROJ-PLAN/branch?max-results=100",
+  );
+});
+
+test("parseBambooPlanBranches: reads the nested branch list", () => {
+  const payload = {
+    branches: {
+      size: 2,
+      branch: [
+        { key: "PROJ-PLAN0", shortName: "develop", link: { href: "https://bamboo.example.com/rest/api/latest/plan/PROJ-PLAN0" } },
+        { key: "PROJ-PLAN1", branchName: "feature/login", name: "My Project - My Plan - feature/login" },
+      ],
+    },
+  };
+  assert.deepEqual(parseBambooPlanBranches(payload), [
+    { planKey: "PROJ-PLAN0", name: "develop" },
+    { planKey: "PROJ-PLAN1", name: "feature/login" },
+  ]);
+});
+
+test("parseBambooPlanBranches: key falls back to the self link; junk yields []", () => {
+  const payload = {
+    branches: {
+      branch: [
+        { shortName: "hotfix", link: { href: "https://bamboo.example.com/rest/api/latest/plan/PROJ-PLAN7" } },
+        { shortName: "no key anywhere" },
+        { key: "PROJ-PLAN7", shortName: "duplicate" },
+      ],
+    },
+  };
+  assert.deepEqual(parseBambooPlanBranches(payload), [{ planKey: "PROJ-PLAN7", name: "hotfix" }]);
+  assert.deepEqual(parseBambooPlanBranches(null), []);
+  assert.deepEqual(parseBambooPlanBranches({}), []);
 });
 
 test("parseBambooResults: undeterminable ids get distinct negative fallbacks (L8)", () => {

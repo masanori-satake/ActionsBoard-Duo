@@ -1,6 +1,6 @@
 # ActionsBoard-Duo
 
-[![Version](https://img.shields.io/badge/version-v1.3.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-v1.4.0-blue.svg)](package.json)
 [![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version/masanori-satake.actionsboard-duo.svg?label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=masanori-satake.actionsboard-duo)
 [![Open VSX](https://img.shields.io/open-vsx/v/masanori-satake/actionsboard-duo?label=Open%20VSX)](https://open-vsx.org/extension/masanori-satake/actionsboard-duo)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/masanori-satake/ActionsBoard-Duo)](https://github.com/masanori-satake/ActionsBoard-Duo/releases)
@@ -20,7 +20,7 @@ The board is a tree in the Activity Bar: **account (server) → group → workfl
 
 The name ends in "-Duo" because the extension works together with your CI servers. (The "-Solo" series works entirely on its own, locally.) The connection is read-only: the extension polls the servers you configure and never changes anything on them. Tokens are stored only in SecretStorage, never in settings files.
 
-Current version: **v1.3.0**
+Current version: **v1.4.0**
 
 ---
 
@@ -109,7 +109,7 @@ MIT — see [LICENSE](LICENSE).
 
 名前の「-Duo」は、CI サーバと組になって働くという意味です（「-Solo」シリーズは単体で、完全ローカルに動きます）。サーバへは読み取りだけです。設定したサーバを定期的に取得しに行くだけで、サーバ側のものを変更することはありません。トークンは SecretStorage のみに置き、設定ファイルには書きません。
 
-現在のバージョン: **v1.3.0**
+現在のバージョン: **v1.4.0**
 
 ---
 

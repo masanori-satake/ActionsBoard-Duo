@@ -110,6 +110,24 @@ export interface JobInfo {
   completedAt: string | null;
 }
 
+/**
+ * Runtime state for one Bamboo branch plan, nested under its master
+ * plan's WorkflowState. Mirrors the master's run fields so the tree
+ * can render a branch exactly like a plan, one level down.
+ */
+export interface PlanBranchState {
+  /** The branch plan's own plan key. */
+  planKey: string;
+  /** Display name (the VCS branch name when known). */
+  name: string;
+  /** Newest builds first, as returned by the API (capped). */
+  runs: RunInfo[];
+  /** The newest build, if any. */
+  latest?: RunInfo;
+  /** Jobs fetched lazily per run id, within this branch. */
+  jobsByRun: Record<number, JobInfo[]>;
+}
+
 /** Runtime state for one watched workflow. */
 export interface WorkflowState {
   /** accountId + owner/repo/workflow */
@@ -132,6 +150,12 @@ export interface WorkflowState {
    * polling (the `plan.name` of a result). Same lifecycle as workflowName.
    */
   planName?: string;
+  /**
+   * Bamboo only: the plan's branch plans and their builds, polled
+   * alongside the master plan. Undefined until the first poll that
+   * could fetch the branch list; empty when the plan has no branches.
+   */
+  branches?: PlanBranchState[];
   /** Jobs fetched lazily per run id. */
   jobsByRun: Record<number, JobInfo[]>;
   /** Last fetch error message, if the last fetch failed at workflow level. */

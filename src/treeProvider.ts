@@ -8,6 +8,7 @@ import type {
   GroupConfig,
   JobInfo,
   PagesStatus,
+  PlanBranchState,
   RunInfo,
   RunStatus,
   ScopeFilter,
@@ -25,7 +26,7 @@ import {
 import { isJa, t } from "./i18n";
 import type { Board } from "./board";
 
-export type NodeKind = "account" | "group" | "workflow" | "run" | "job" | "info";
+export type NodeKind = "account" | "group" | "workflow" | "branch" | "run" | "job" | "info";
 
 export interface BoardNode {
   kind: NodeKind;
@@ -35,6 +36,8 @@ export interface BoardNode {
   account?: AccountConfig;
   group?: GroupConfig;
   workflow?: WatchedItem;
+  /** Bamboo branch-plan node (the master plan itself appears as one too). */
+  branch?: PlanBranchState;
   run?: RunInfo;
   /** Row label override (Bamboo builds: branch name, or "#<build number>"). */
   label?: string;
@@ -199,6 +202,22 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       return node;
     }
     const state = this.board.states.get(itemKey(account.id, w));
+    if (isPlanEntry(w) && state && (state.branches?.length ?? 0) > 0) {
+      // A plan with branch plans nests: the master plan itself and
+      // each branch plan become a branch node, and the builds hang
+      // under their own plan — the structure Bamboo itself uses.
+      const master: PlanBranchState = {
+        planKey: w.planKey,
+        name: t("tree.masterPlan"),
+        runs: state.runs,
+        latest: state.latest,
+        jobsByRun: state.jobsByRun,
+      };
+      node.children = [master, ...(state.branches ?? [])].map((branch) =>
+        this.buildBranchNode(account, group, w, branch, node),
+      );
+      return node;
+    }
     node.children = (state?.branchRuns ?? []).map((run) => ({
       kind: "run" as const,
       id: `run:${itemKey(account.id, w)}:${run.id}`,
@@ -210,6 +229,37 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       // Bamboo builds are labelled by branch when the payload carries
       // one, else by build number; GitHub runs use the branch as-is.
       label: isPlanEntry(w) ? (run.branch !== "" ? run.branch : `#${run.runNumber}`) : undefined,
+    }));
+    return node;
+  }
+
+  private buildBranchNode(
+    account: AccountConfig,
+    group: GroupConfig,
+    w: WatchedItem,
+    branch: PlanBranchState,
+    parent: BoardNode,
+  ): BoardNode {
+    const node: BoardNode = {
+      kind: "branch",
+      id: `branch:${itemKey(account.id, w)}:${branch.planKey}`,
+      branch,
+      workflow: w,
+      account,
+      group,
+      parent,
+    };
+    node.children = branch.runs.map((run) => ({
+      kind: "run" as const,
+      id: `run:${itemKey(account.id, w)}:${branch.planKey}:${run.id}`,
+      run,
+      workflow: w,
+      account,
+      group,
+      parent: node,
+      // Under a branch node the build number is the label; the branch
+      // name is already the parent's label.
+      label: `#${run.runNumber}`,
     }));
     return node;
   }
@@ -241,6 +291,8 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
       }
       case "workflow":
         return isPlanEntry(node.workflow!) ? this.planItem(node) : this.workflowItem(node);
+      case "branch":
+        return this.branchItem(node);
       case "run":
         return this.runItem(node);
       case "job": {
@@ -391,7 +443,8 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     const unreachable = health?.state === "unreachable";
     // Bamboo builds carry no actor, so the person mark never applies.
     const marks = marksFor(plan.starred === true, false);
-    const collapsible = !unreachable && (state?.branchRuns.length ?? 0) > 0;
+    const collapsible =
+      !unreachable && ((state?.branchRuns.length ?? 0) > 0 || (state?.branches?.length ?? 0) > 0);
     const item = new vscode.TreeItem(
       planDisplayName(plan, state?.planName),
       collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
@@ -426,6 +479,34 @@ export class BoardTreeProvider implements vscode.TreeDataProvider<BoardNode> {
     }
     if (state?.error) {
       tooltipLines.push(`${t("tree.fetchError")}: ${state.error}`);
+    }
+    tooltipLines.push(t("tree.legend"));
+    item.tooltip = tooltipLines.join("\n");
+    return item;
+  }
+
+  private branchItem(node: BoardNode): vscode.TreeItem {
+    const branch = node.branch!;
+    const item = new vscode.TreeItem(
+      branch.name,
+      branch.runs.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+    );
+    item.contextValue = "planBranch";
+    // The branch glyph's colour carries the newest build's status.
+    item.iconPath = new vscode.ThemeIcon("source-control");
+    const parts: string[] = [];
+    if (branch.latest) {
+      const s = STATUS_ICON[branch.latest.status];
+      item.iconPath = new vscode.ThemeIcon("source-control", new vscode.ThemeColor(s.color));
+      parts.push(`#${branch.latest.runNumber}`);
+      parts.push(relativeTime(branch.latest.updatedAt));
+    } else {
+      parts.push(t("tree.noRuns"));
+    }
+    item.description = parts.join(" · ");
+    const tooltipLines = [`${branch.name} — ${branch.planKey}`];
+    if (branch.latest) {
+      tooltipLines.push(`${statusText(branch.latest.status)} · ${branch.latest.title}`);
     }
     tooltipLines.push(t("tree.legend"));
     item.tooltip = tooltipLines.join("\n");

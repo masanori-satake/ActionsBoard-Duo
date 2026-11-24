@@ -47,6 +47,18 @@ export function bambooResultsUrl(baseUrl: string, planKey: string, maxResults = 
   return `${restUrl(baseUrl, `result/${encodeURIComponent(planKey)}`)}?expand=results.result&max-results=${maxResults}`;
 }
 
+/** A plan's branch plans (`GET /plan/{planKey}/branch`). */
+export function bambooPlanBranchesUrl(baseUrl: string, planKey: string): string {
+  return `${restUrl(baseUrl, `plan/${encodeURIComponent(planKey)}/branch`)}?max-results=100`;
+}
+
+/**
+ * How many branch plans one watched plan follows. Each branch costs
+ * one results request per poll cycle, so the fan-out is bounded;
+ * branches beyond the cap are not shown.
+ */
+export const BAMBOO_BRANCHES_CAP = 25;
+
 /** One build's detail, with its stages' job results expanded (documented expand path). */
 export function bambooResultDetailUrl(baseUrl: string, resultKey: string): string {
   return `${restUrl(baseUrl, `result/${encodeURIComponent(resultKey)}`)}?expand=stages.stage.results.result`;
@@ -296,6 +308,61 @@ export function parseBambooPlans(json: unknown): BambooPlanSummary[] {
   // Sorted so the settings form's checklist groups by project no matter
   // what order the server returned.
   out.sort((a, b) => a.projectKey.localeCompare(b.projectKey) || a.planKey.localeCompare(b.planKey));
+  return out;
+}
+
+export interface BambooBranchSummary {
+  /** The branch plan's own plan key, e.g. "PROJ-PLAN0". */
+  planKey: string;
+  /** Display name: the VCS branch name when the payload carries it. */
+  name: string;
+}
+
+interface RawBambooBranch {
+  key?: string;
+  name?: string;
+  shortName?: string;
+  branchName?: string;
+  vcsBranchName?: string;
+  link?: { href?: string };
+}
+
+/** The plan key at the tail of a ".../plan/{planKey}" self link. */
+function planKeyFromLink(href: string): string {
+  const m = /\/plan\/([^/?#]+)/.exec(href);
+  return m ? decodeURIComponent(m[1]) : "";
+}
+
+/**
+ * Parse a plan's branch list (`GET /plan/{planKey}/branch`) into the
+ * branch plans to follow. The documented shape nests the entries as
+ * `branches.branch`; which field carries the VCS branch name is not
+ * pinned by the references, so the plausible names are read in order
+ * (branchName / vcsBranchName / shortName / name). Entries without a
+ * usable key are dropped, duplicates collapse, and the list is capped
+ * at BAMBOO_BRANCHES_CAP.
+ */
+export function parseBambooPlanBranches(json: unknown): BambooBranchSummary[] {
+  const raw = asArray((json as { branches?: { branch?: unknown } })?.branches?.branch);
+  const out: BambooBranchSummary[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const b = item as RawBambooBranch;
+    if (!b || typeof b !== "object") {
+      continue;
+    }
+    const planKey = str(b.key) || planKeyFromLink(str(b.link?.href));
+    if (planKey === "" || seen.has(planKey)) {
+      continue;
+    }
+    seen.add(planKey);
+    const name =
+      str(b.branchName) || str(b.vcsBranchName) || str(b.shortName) || str(b.name) || planKey;
+    out.push({ planKey, name });
+    if (out.length >= BAMBOO_BRANCHES_CAP) {
+      break;
+    }
+  }
   return out;
 }
 
