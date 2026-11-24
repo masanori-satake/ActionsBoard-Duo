@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import {
   bambooCurrentUserUrl,
+  bambooPlanBranchesUrl,
   bambooPlanCount,
   bambooPlansUrl,
   bambooProjectsUrl,
@@ -9,6 +10,7 @@ import {
   BAMBOO_PLANS_CAP,
   BAMBOO_PLANS_PAGE_SIZE,
   parseBambooCurrentUser,
+  parseBambooPlanBranches,
   parseBambooPlanName,
   parseBambooPlans,
   parseBambooProjects,
@@ -50,6 +52,7 @@ import type {
   AppConfig,
   JobInfo,
   PagesDeploymentState,
+  PlanBranchState,
   WatchedItem,
   WatchedPlan,
   WatchedWorkflow,
@@ -584,6 +587,7 @@ export class Board implements vscode.Disposable {
         throw new Error(`HTTP ${res.status}`);
       }
       const runs = parseBambooResults(res.json, account.baseUrl);
+      const branches = await this.pollBranches(account, plan, prev);
       const next: WorkflowState = {
         key,
         runs,
@@ -592,6 +596,7 @@ export class Board implements vscode.Disposable {
         branchRuns: runs,
         latest: runs[0],
         planName: parseBambooPlanName(res.json) ?? prev?.planName,
+        branches,
         jobsByRun: prev?.jobsByRun ?? {},
         fetchedAt: Date.now(),
       };
@@ -606,11 +611,67 @@ export class Board implements vscode.Disposable {
         latest: prev?.latest,
         workflowName: prev?.workflowName,
         planName: prev?.planName,
+        branches: prev?.branches,
         jobsByRun: prev?.jobsByRun ?? {},
         error: message,
         fetchedAt: prev?.fetchedAt,
       });
     }
+  }
+
+  /**
+   * Poll one plan's branch plans: the branch list, then each branch
+   * plan's recent builds. Branch trouble never fails the master's
+   * poll — a failed list fetch keeps the previous branches (and still
+   * refreshes their builds), and a failed branch keeps its previous
+   * builds. Failure notifications stay with the master plan; branch
+   * states are display-only.
+   */
+  private async pollBranches(
+    account: AccountConfig,
+    plan: WatchedPlan,
+    prev: WorkflowState | undefined,
+  ): Promise<PlanBranchState[]> {
+    const prevByKey = new Map((prev?.branches ?? []).map((b) => [b.planKey, b]));
+    let summaries: { planKey: string; name: string }[] | undefined;
+    try {
+      const res = await this.api(account, bambooPlanBranchesUrl(account.baseUrl, plan.planKey));
+      if (res.status >= 200 && res.status < 300) {
+        summaries = parseBambooPlanBranches(res.json);
+      }
+    } catch {
+      // Keep the previous branch list; its builds are still refreshed below.
+    }
+    if (!summaries) {
+      summaries = (prev?.branches ?? []).map((b) => ({ planKey: b.planKey, name: b.name }));
+    }
+    return Promise.all(
+      summaries.map(async (s): Promise<PlanBranchState> => {
+        const prevBranch = prevByKey.get(s.planKey);
+        try {
+          const res = await this.api(account, bambooResultsUrl(account.baseUrl, s.planKey));
+          if (res.status < 200 || res.status >= 300) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const runs = parseBambooResults(res.json, account.baseUrl);
+          // The branch's own builds name their VCS branch; that is the
+          // label the branch list could only guess at.
+          const branchName = runs[0]?.branch ?? "";
+          const name = branchName !== "" ? branchName : s.name;
+          return {
+            planKey: s.planKey,
+            name,
+            runs,
+            latest: runs[0],
+            jobsByRun: prevBranch?.jobsByRun ?? {},
+          };
+        } catch {
+          return (
+            prevBranch ?? { planKey: s.planKey, name: s.name, runs: [], latest: undefined, jobsByRun: {} }
+          );
+        }
+      }),
+    );
   }
 
   private maybeNotifyFailure(
@@ -661,15 +722,27 @@ export class Board implements vscode.Disposable {
   async fetchJobs(account: AccountConfig, item: WatchedItem, runId: number): Promise<JobInfo[]> {
     const key = itemKey(account.id, item);
     const state = this.states.get(key);
-    const cached = state?.jobsByRun[runId];
-    if (cached) {
-      return cached;
-    }
-    let jobs: JobInfo[];
     if (isPlanEntry(item)) {
       // Bamboo: one lazy request for the build's detail, whose stages
-      // carry the job results. Polling never fans out per build.
-      const run = state?.runs.find((r) => r.id === runId);
+      // carry the job results. Polling never fans out per build. The
+      // build may belong to the master plan or to one of its branch
+      // plans; each keeps its own jobs cache.
+      let owner: { jobsByRun: Record<number, JobInfo[]> } | undefined = state;
+      let run = state?.runs.find((r) => r.id === runId);
+      if (!run) {
+        for (const branch of state?.branches ?? []) {
+          const found = branch.runs.find((r) => r.id === runId);
+          if (found) {
+            run = found;
+            owner = branch;
+            break;
+          }
+        }
+      }
+      const cached = owner?.jobsByRun[runId];
+      if (cached) {
+        return cached;
+      }
       if (!run?.key) {
         return [];
       }
@@ -677,14 +750,21 @@ export class Board implements vscode.Disposable {
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`HTTP ${res.status}`);
       }
-      jobs = parseBambooStages(res.json, account.baseUrl);
-    } else {
-      const res = await this.api(account, listJobsUrl(account.baseUrl, item.owner, item.repo, runId));
-      if (res.status < 200 || res.status >= 300) {
-        throw new Error(`HTTP ${res.status}`);
+      const jobs = parseBambooStages(res.json, account.baseUrl);
+      if (owner) {
+        owner.jobsByRun[runId] = jobs;
       }
-      jobs = parseJobs(res.json);
+      return jobs;
     }
+    const cached = state?.jobsByRun[runId];
+    if (cached) {
+      return cached;
+    }
+    const res = await this.api(account, listJobsUrl(account.baseUrl, item.owner, item.repo, runId));
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const jobs = parseJobs(res.json);
     if (state) {
       state.jobsByRun[runId] = jobs;
     }

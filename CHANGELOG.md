@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0] - 2026-11-24
+
+### Added
+
+- Bamboo plans with plan branches now nest in the tree: the master plan and each branch plan appear as branch nodes under the plan, and each plan's recent builds hang under its own node — the structure Bamboo itself uses. Branch builds expand to their jobs as before, and clicking a build or job opens its Bamboo page. A plan without branch plans keeps the previous flat list of builds. Branch failures are shown on the branch node; failure notifications still follow the master plan's newest build.
+
+- Bambooプランにプランブランチがある場合、ツリーで入れ子表示するようになりました。本体プランと各ブランチプランがプランの下にぶら下がり、それぞれの最近のビルドがその下に並びます（Bamboo 本来の構造そのままです）。ブランチのビルドもこれまでどおりジョブへ展開でき、クリックで Bamboo のページが開きます。ブランチのないプランは従来どおりビルドが直接並びます。ブランチの失敗はブランチの行に状態として出ますが、失敗通知は本体プランの最新ビルドに従うままです。
+
 ## [1.3.0] - 2026-11-24
 
 ### Added
