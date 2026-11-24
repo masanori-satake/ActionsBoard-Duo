@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] - 2026-11-24
+
+### Changed
+
+- The Bamboo master plan's node in the nested branch view is now labelled "Base plan" instead of "Master plan".
+
+- Bamboo の入れ子表示で、本体プランのノードの表記を「ベースプラン」に変えました。
+
 ## [1.4.0] - 2026-11-24
 
 ### Added
